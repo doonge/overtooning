@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0
+// @version        1.0.1
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @include        http://webtoon.daum.net/*
 // @include        http://cartoon.media.daum.net/*
@@ -384,7 +384,7 @@ var overlayLoader = {
                         assign: 'webtoonTitle'},
                     {path: '#content/div.section_spot/div.comicinfo/div.detail/h2/span.wrt_nm',
                         assign: 'webtoonAuthor'},
-                    {path: '#content/div.section_spot/div.comicinfo/div.detail/p.txt', style: 'max-height: 50px;',
+                    {path: '#content/div.section_spot/div.comicinfo/div.detail/p.txt', style: 'max-height: 50px; word-break: normal; word-wrap: normal;',
                         assign: 'webtoonBlurb'},
                     {path: '#content/div.section_spot/div.comicinfo/div.detail/ul.btn_group/li[]/a/', className: ' ',
                         translate: [TEXT.fav.toUpperCase(), TEXT.first.toUpperCase(), TEXT.list.toUpperCase(), TEXT.artist.toUpperCase()]},
@@ -436,7 +436,7 @@ var overlayLoader = {
                     {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.up', style: 'width: 30px;',
                         translate: TEXT.top},
                     {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.down', style: 'width: 30px;',
-                        translate: TEXT.down},
+                        translate: TEXT.bottom},
                     {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.lst', style: 'width: 20px;',
                         translate: TEXT.list},
                     {path: '#comicRemocon/div.remote_cont/a.tit',
@@ -1549,7 +1549,6 @@ var overlayLoader = {
                         }
                     } else {
                         this.observer.push(targetElement);
-                        //var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
                         targetElement.observer = new MutationObserver(function(mutations) {
                             overlayLoader.mutationObserved(this, mutations);
                         });
@@ -1606,6 +1605,10 @@ var overlayLoader = {
             this.vars.menu.node.appendChild(this.create('img', {
                 src: british, alt: 'logo', style: 'width: 100%; height: 100%; display: block;',
                 onclick: function(){
+                    //allow select and copy/paste (disallowed from naver).
+                    document.oncontextmenu = null;
+                    document.onselectstart = null;
+                    //end;
                     var logs = overlayLoader.create('div', {style: 'position: fixed; width: 80%; height: 80%; background: #DDD; top: 10%; left: 10%; z-index: 99999; text-align: left; border: 1px solid black; border-radius: 1em;'},
                         overlayLoader.create('div', {style: 'padding: 0.5em 1em;; position: relative; background: white; font-weight: bold; border-bottom: 1px solid black; margin-bottom: 1em; border-radius: 1em 1em 0 0;', textContent: 'Overtooning CONSOLE'},
                             overlayLoader.create('span', {style: 'cursor: pointer; position: absolute; display: inline-block; width: 10%; text-align: right; right: 1em;', textContent: 'close', onclick: function(){document.body.removeChild(this.parentNode.parentNode);}})
@@ -1627,6 +1630,7 @@ var overlayLoader = {
         if(this.vars.webtoonId) { //chapter page, or chapterList
             for(var i = 0; i < this.data.webtoonList.length; i++) {
                 if(this.data.webtoonList[i].wI == this.value(this.vars.webtoonId)) {
+                    this.vars.internalWebtoonId = i;
                     accessFeed = this.data.webtoonList[i].fL;
                     if(this.vars.webtoonBlurb && this.vars.webtoonBlurb.node) {
                         this.vars.webtoonBlurb.node.textContent = ' ';
@@ -2048,12 +2052,21 @@ var overlayLoader = {
             //--- MAYBE UPDATE - test against group precedence. $incomplete
             if(data.title && !overlayLoader.scanlated && overlayLoader.vars.webtoonTitle) {
                 overlayLoader.value(overlayLoader.vars.webtoonTitle, data.title);
+                if(overlayLoader.vars.internalWebtoonId !== false && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
+                    overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wT = data.title;
+                }
             }
             if(data.author && !overlayLoader.scanlated && overlayLoader.vars.webtoonAuthor) {
                 overlayLoader.value(overlayLoader.vars.webtoonAuthor, data.author);
+                if(overlayLoader.vars.internalWebtoonId !== false && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
+                    overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wA = data.author;
+                }
             }
             if(data.description && !overlayLoader.scanlated && overlayLoader.vars.webtoonBlurb) {
                 overlayLoader.value(overlayLoader.vars.webtoonBlurb, data.description);
+                if(overlayLoader.vars.internalWebtoonId !== false  && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
+                    overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wB = data.description;
+                }
             }
             if(data.chapterList && data.chapterList instanceof Array) {
                 overlayLoader.resource.chapterList = data.chapterList;
