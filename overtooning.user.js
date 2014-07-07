@@ -2,12 +2,13 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.1
+// @version        1.0.2
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @include        http://webtoon.daum.net/*
 // @include        http://cartoon.media.daum.net/*
 // @include        http://comic.naver.com/*
 // @include        http://m.comic.naver.com/*
+// @include        http://m.webtoons.com/*
 // @include        http://comics.nate.com/*
 // @include        http://webtoon.olleh.com/*
 // @include        http://ttale.com/*
@@ -23,32 +24,38 @@ var TEXT = {
     mon: 'mon', tue: 'tue', wed: 'wed', thu: 'thu', fri: 'fri', sat: 'sat', sun: 'sun',
     monday: 'monday', tuesday: 'tuesday', wednesday: 'wednesday', thursday: 'thursday', friday: 'friday', saturday: 'saturday', sunday: 'sunday',
     week: 'week', weekDay: 'weekday', month: 'month', year: 'year', today: 'today',
+    monthly: 'monthly', weekly: 'weekly',
     //Genre - comment: historical > history, and shorter 'slice of life'??
     webtoon: 'webtoon', bestChallenge: 'best challenge', challenge: 'challenge', smartoon: 'smarttoon',
     webtoons: 'webtoons', bestChallenges: 'best challenges', challenges: 'challenges', smartoons: 'smarttoons',
     genre: 'genre', theme: 'theme',
     complete: 'complete', completed: 'completed', ongoing: 'ongoing',
     episode: 'episode', omnibus: 'omnibus', story: 'story', daily: 'daily',
-    humor: 'humor', fantasy: 'fantasy', action: 'action', drama: 'drama', romance: 'romance', sliceOfLife: 'slice of life', thrill: 'thrill', historical: 'historical', sport: 'sport',
+    humour: 'humour', fantasy: 'fantasy', action: 'action', drama: 'drama', romance: 'romance', sliceOfLife: 'slice of life', thriller: 'thriller', historical: 'historical', sport: 'sport',
     //Navigation
-    index: 'index', home: 'home',
+    index: 'index', home: 'home', navbar: 'navbar',
     top: 'top', bottom: 'bottom', next: 'next', previous: 'previous', prev: 'prev',
-    page: 'page',
+    page: 'page', end: 'end',
     //Properties
-    title: 'title', artist: 'artist', author: 'author', blurb: 'blurb', type: 'type',
+    title: 'title', artist: 'artist', author: 'author', blurb: 'blurb', type: 'type', comment: 'comment',
     rating: 'rating',  votes: 'votes', visits: 'visits', ranking: 'ranking', rate: 'rate',
+    voters: 'voters',
     date: 'date', update: 'update', published: 'published',
     image: 'image',
     //Generic keywords
     list: 'list', first: 'first', fav: 'fav', view: 'view',
+    sex: 'sex', age: 'age',
     _all: 'all', more: 'more', matches: 'matches', go: 'go', by: 'by', average: 'average',
     submit: 'submit',
-    recommended: 'recommended', MY: 'MY', recommandations: 'recommandations',
+    recommended: 'recommended', MY: 'MY', recommendations: 'recommendations',
     //naver specific
     popular: 'popular', brand: 'brand', pick: 'pick', remake: 'remake', multiPlot: 'multi-plot',
     _new: 'new', _this: 'this', _try: 'try',
-    
     remote: 'remote',
+    //daum specific
+    autoscroll: 'autoscroll',
+    
+
     //Dynamic construction -- not anything special (based on english).
     //Might want to invert stuff for other langages and/or add suffix/prefix.
     verbalize: function(verb, something) {return verb + ' ' + something;},
@@ -122,8 +129,22 @@ var overlayLoader = {
     
     // --------------------- DEFINITIONS
     loadTemplate: function() {
+        //------------------------------- M.WEBTOONS.COM $line
+        if(window.location.hostname == 'm.webtoons.com') {
+            this.template = [
+            {  route: '',
+                css: [
+                    {selector: '.viewer_img',
+                        style: 'height: auto !important;'},
+                    {selector: '.flick-container .flick-ct',
+                        style: 'text-align: center; float: none;'},
+                    {selector: '.flick-container .flick-ct img',
+                        style: 'width: auto; height: auto;'},
+                ]
+            }
+            ];
         //------------------------------- COMIC.NAVER.COM $naver
-        if(window.location.hostname == 'comic.naver.com') {
+        } else if(window.location.hostname == 'comic.naver.com') {
             this.template = [
             {  route: '',
                 html: [
@@ -175,7 +196,7 @@ var overlayLoader = {
             {  route: '/(genre|bestChallenge|challenge)',
                 html: [
                     {path: '#content/div.snb/ul[]/li[]/a',
-                        translate: [TEXT.capitalize(TEXT._all), TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humor, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thrill, TEXT.historical, TEXT.sport]},
+                        translate: [TEXT.capitalize(TEXT._all), TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]},
                     {path: '#content/div.mainTodayBox/h3/img', tagName: 'em', style: 'margin-left: 20px;',
                         translate: TEXT.todaysPopular},
                     {path: '#content/div.mainTodayBox/ul/li[]',
@@ -217,7 +238,7 @@ var overlayLoader = {
             {  route: '/webtoon/genre',
                 html: [
                     {path: '#content/ul.category_tab/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humor, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thrill, TEXT.historical, TEXT.sport]},
+                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]},
                     {path: '#content/div.view_type/h3/img', tagName: 'span',
                         translate: TEXT.capitalize(TEXT.matches) + ':'},
                     {path: '#content/div.view_type/h3/~img', tagName: 'span',
@@ -227,7 +248,7 @@ var overlayLoader = {
                     {selector: '.webtoon .category_tab2 li, .webtoon .category_tab2 li.on2',
                         style: 'width: auto;'},
                     {selector: '.webtoon .category_tab2 li a',
-                        style: 'padding-left: 0.8em; padding-right: 0.8em;'},
+                        style: 'padding-left: 0.7em; padding-right: 0.7em;'},
                     {selector: '.webtoon .view_type h3 em', //hide the korean
                         style: 'background: none; margin: 0; padding: 0; text-indent: -1em; line-height: 22px; overflow: hidden;'},
                 ]
@@ -235,7 +256,7 @@ var overlayLoader = {
             {  route: '/webtoon/weekdayList',
                 html: [
                     {path: '#content/div.webtoon_spot/h3/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.recommandations)},
+                        translate: TEXT.capitalize(TEXT.recommendations)},
                     {path: '#content/div.webtoon_spot/ul/li[]',
                         assign: 'webtoonList', innerPath: {webtoonId: 'dl/dt/a@href?titleId', webtoonTitle: 'dl/dt/a/strong', webtoonAuthor: 'dl/dd/p/a'}},
                     {path: '#content/div.list_area/ul/li[]',
@@ -456,13 +477,13 @@ var overlayLoader = {
             {  route: '/index',
                 html: [
                     {path: '#content/div.genreRecomBox/div.tab_gr/ul/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humor, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thrill, TEXT.historical, TEXT.sport]},
+                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]},
                     {path: '#content/div.genreRecomBox/h3/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.recommandations) + ' ' + TEXT.adverbize(TEXT.by, TEXT.genre)},
+                        translate: TEXT.capitalize(TEXT.recommendations) + ' ' + TEXT.adverbize(TEXT.by, TEXT.genre)},
                     {path: '#content/div.genreRecomBox/h3/a/img', tagName: 'em',
                         translate: TEXT.capitalize(TEXT.verbalize(TEXT.view, TEXT.compoundize(TEXT.list, TEXT.genre)))},
                     {path: '#content/div.genreRecomBox_area/h3/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.compoundize(TEXT.recommandations, TEXT.challenge))},
+                        translate: TEXT.capitalize(TEXT.compoundize(TEXT.recommendations, TEXT.challenge))},
                     {path: '#content/div.genreRecomBox_area/ul/li[]/h4/img', tagName: 'em',
                         translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story)]},
                     {path: '#content/div.genreRecomBox_area/ul/li[]/ul/li[]',
@@ -504,17 +525,17 @@ var overlayLoader = {
             {  route: '/index',
                 html: [
                     {path: '#ct/div.new_webtoon/div/p.tit',
-                        translate: 'New monthly '},
+                        translate: TEXT.capitalize(TEXT.compoundize(TEXT.monthly, TEXT._new)) + ' '},
                     {path: '#newTitle', observe: '#newTitle',
-                        translate: 'pick'},
+                        translate: TEXT.pick},
                     {path: 'div[]#newWebtoon/ul/li[]', observe: '#newTitle',
                         assign: 'webtoonList', innerPath: {webtoonId: 'a@onclick?0', webtoonTitle: 'a/p/strong', webtoonAuthor: 'a/p/span'}}, //translation refresh?
                     {path: '#ct/div.votetop/h3/p',
-                        translate: 'Increasingly popular TOP 10'},
+                        translate: 'Increasingly popular TOP 10'}, //translation missing
                     {path: '#newWeb',
-                        translate: 'Webtoon'},
+                        translate: TEXT.capitalize(TEXT.webtoon)},
                     {path: '#newBest',
-                        translate: 'Challenge'},
+                        translate: TEXT.capitalize(TEXT.challenge)},
                     {path: 'div[]#realtime/ul/li[]', observe: '#realtime', options: {attributes: true},
                         assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/p/span/span|div/a/p/span/span', webtoonAuthor: 'div/a/div/p/span.sub_info|div/a/p/span.sub_info'}},
                     {path: '#ageTab/li[]/a/strong',
@@ -522,11 +543,11 @@ var overlayLoader = {
                     {path: '#ageTab/li[]/a/span/em/+',
                         translate: ['+', '+', '+', '+','+', '+']},
                     {path: '#ageTab/-2/h3/p',
-                        translate: 'Age / Sex Top Pick'},
+                        translate: TEXT.compoundize(TEXT.adjectivize(TEXT.capitalize(TEXT.top), TEXT.capitalize(TEXT.pick)), TEXT.capitalize(TEXT.age) + '/' + TEXT.capitalize(TEXT.sex))},
                     {path: 'div[]#recommend/ul/li[]', observe: '#recommend',
                         assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/p/span/span|div/a/p/span/span', webtoonAuthor: 'div/a/div/p/span.sub_info|div/a/p/span.sub_info'}},
                     {path: '#ct/div.u_ft/div/div/a/span/+',
-                        translate: 'TOP'}
+                        translate: TEXT.top.toUpperCase()}
                 ]
             },
             {  route: '/(index|(webtoon|bestChallenge)/(list|genre|weekday))',
@@ -534,18 +555,18 @@ var overlayLoader = {
                     {path: 'header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; border: #333 1px solid; z-index: 40;',
                         assign: 'menu'},
                     {path: 'div.ht/div/ul/li[]/a/span',
-                        translate: ['Weekday', 'Genre', 'Challenge', 'MY']},
+                        translate: [TEXT.capitalize(TEXT.weekDay), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
                     {path: 'div.ht/div/ul/li/+/li/+/li/+/li/+/li/a',
-                        translate: 'Smartoon '},
+                        translate: TEXT.capitalize(TEXT.smartoon)},
             ]},
             {  route: '/(webtoon|bestChallenge)/(genre|weekday)',
                 html: [
                     {path: '#form/ul.sort/li[]/input/+',
-                        translate: [' by visits', ' by update', ' by rating', ' by title']},
+                        translate: [TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.rating), TEXT.adverbize(TEXT.by, TEXT.title)]},
                     {path: '#pageList/li[]',
                         assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/p/span/span', webtoonAuthor: 'div/a/div/p/span.sub_info'}},
                     {path: '#ct/+/div.u_ft/div/div/a/span/+',
-                        translate: 'TOP'}
+                        translate: TEXT.top.toUpperCase()}
             ]},
             {  route: '/(webtoon|bestChallenge)/list',
                 html: [
@@ -556,46 +577,46 @@ var overlayLoader = {
                     {path: '#form/div/dl/dt/+/dd',
                         assign: 'webtoonAuthor'},
                     {path: '#form/div/dl/dt/+/dd/+/dd/a',
-                        translate: 'FIRST'},
+                        translate: TEXT.first.toUpperCase()},
                     {path: '#ct/+/div.u_ft/div/div/a/span/+',
-                        translate: 'TOP'},
+                        translate: TEXT.top.toUpperCase()},
                     {path: '#pageList/li[]',
                         assign: 'chapterList', innerPath: {chapterId: 'div/a@href?no', chapterTitle: 'div/a/div/p/span/span/'}}
             ]},
             {  route: '/webtoon/detail',
                 html: [
                     {path: '#fixedHeader/div.chn/dl/dd[]/a',
-                        translate: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'End']}
+                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.end]}
             ]},
             {  route: '/webtoon/(list|weekday)',
                 html: [
                     {path: 'div.chn/dl/dd[]/a',
-                        translate: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'End']}
+                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.end]}
             ]},
             {  route: '/bestChallenge/(list|genre|detail)',
                 html: [
                     {path: '#genreTab/ul/li[]/a',
-                        translate: ['All', 'Episode', 'Omnibus', 'Story', 'Daily', 'Humor', 'Fantasy', 'Action', 'Drama', 'Pure', 'Light', 'Thrill', 'Historical', 'Sport']}
+                        translate: [TEXT.capitalize(TEXT._all), TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]}
             ]},
             {  route: '/webtoon/genre',
                 html: [
                     {path: '#genreTab/ul/li[]/a',
-                        translate: ['Episode', 'Omnibus', 'Story', 'Daily', 'Humor', 'Fantasy', 'Action', 'Drama', 'Pure', 'Light', 'Thrill', 'Historical', 'Sport']}
+                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]}
             ]},
             {  route: '/(webtoon|bestChallenge)/detail',
                 html: [
                     {path: '#fixedHeader/header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; border: #333 1px solid; z-index: 40;',
                         assign: 'menu'},
                     {path: '#fixedHeader/div.ht/div/ul/li[]/a/span',
-                        translate: ['Weekday', 'Genre', 'Challenge', 'MY']},
+                        translate: [TEXT.capitalize(TEXT.weekDay), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
                     {path: '#fixedHeader/div.ht/div/ul/li/+/li/+/li/+/li/+/li/a',
-                        translate: 'Smartoon '},
+                        translate: TEXT.capitalize(TEXT.smartoon)},
                     {path: '#fixedHeader/div.chh/h1',
                         assign: 'chapterTitle'},
                     {path: '#fixedHeader/div.chh/div.pl/a/span',
-                        translate: 'LIST'},
+                        translate: TEXT.list.toUpperCase()},
                     {path: '#fixedHeader/div.chh/div.pr/a',
-                        translate: '★ FAV'},
+                        translate: '★ ' + TEXT.fav.toUpperCase()},
                     {path: '#toon_0@src?path-2',
                         assign: 'chapterId'},
                     {path: '#toon_0@src?path-3',
@@ -603,25 +624,25 @@ var overlayLoader = {
                     {path: 'li[]/p/img#toon_0',
                         assign: 'imageList', innerPath: {style: 'margin-top: 0px; position: absolute; top: 0; left: 0;', keepOriginal: true}},
                     {path: '#starDiv/h3',
-                        translate: 'AVERAGE RATING'},
+                        translate: TEXT.adjectivize(TEXT.average, TEXT.rating).toUpperCase()},
                     {path: '#starscoreCount/em/+',
-                        translate: ' voters'},
+                        translate: ' ' + TEXT.voters},
                     {path: '#starToggleButton',
-                        translate: 'Rate'},
+                        translate: TEXT.capitalize(TEXT.rate)},
                     {path: '#toonLayer/+/div.cmt/div.wr/h3/span',
                         assign: 'webtoonAuthor'},
                     {path: '#toonLayer/+/div.cmt/div.wr/h3/span/+', tagName: 'span', style: 'font-weight: normal;',
-                        translate: ' - author\'s comment'},
+                        translate: ' - ' + TEXT.shortPossessivize(TEXT.comment, TEXT.author)},
                     {path: '#spiLayer1/+/div/p/a/span.pv',
-                        translate: 'PREV'},
+                        translate: TEXT.prev.toUpperCase()},
                     {path: '#spiLayer1/+/div/p/a/span.nx',
-                        translate: 'NEXT'},
+                        translate: TEXT.next.toUpperCase()},
                     {path: '#spiLayer1/+/div/p/a/+/a/span.nx',
-                        translate: 'NEXT'},
+                        translate: TEXT.next.toUpperCase()},
                     {path: '#spiLayer1/+/div/p/~a',
-                        translate: 'LIST'},
+                        translate: TEXT.list.toUpperCase()},
                     {path: '#ct/+/div.u_ft/div/div/a/span/+',
-                        translate: 'TOP'},
+                        translate: TEXT.top.toUpperCase()},
                 ],
                 css: [
                     {selector: '.toon_view_lst li p',
@@ -635,7 +656,7 @@ var overlayLoader = {
             {  route: '/(webtoon|league)/viewer/',
                 html: [
                     {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo',
-                        translate: 'Home'},
+                        translate: TEXT.capitalize(TEXT.home)},
                     {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo/+', tagName: 'div', style: 'margin: 16px 0px 0px -16px; display: inline-block; background: #4c4c4c; width: 24px; height: 12px; cursor: pointer;',
                         assign: 'menu'},
                     {path: 'div.wrap/div.head_bar/div/div.episode_info/a',
@@ -645,7 +666,7 @@ var overlayLoader = {
                     {path: 'div.wrap/div.head_bar/div/div.episode_info/span.writer',
                         assign: 'webtoonAuthor'},
                     {path: 'div.wrap/div.head_bar/div/div.others/span.move_control/span.txt',
-                        translate: 'NavBar'},
+                        translate: TEXT.capitalize(TEXT.navbar)},
                     {path: 'div.wrap/div.head_bar/div/div.others/span.move_control/span.episode_title',
                         assign: 'chapterTitle'},
                     {path: '#scrollWrap/ul/li.on@id?0',
@@ -653,7 +674,7 @@ var overlayLoader = {
                     {path: 'div.wrap/div.main_content/div/div/img[]',
                         assign: 'imageList', innerPath: {style: 'display: block; margin-left: auto; margin-right: auto;'}},
                     {path: 'div.wrap/div.main_content/div.controler/div/div/div/a/',
-                        translate: 'autoscroll'},
+                        translate: TEXT.autoscroll},
                     {path: '#scrollWrap/ul/li[]',
                         assign: 'chapterList', innerPath: {chapterTitle: 'a.title/', chapterId: 'a.title@href?0'}}
                 ],
@@ -1047,7 +1068,7 @@ var overlayLoader = {
                 {  route: '/main',
                     html: [
                         {path: '#webToonChoice/div/a[]/span',
-                            translate: ['dafuck1', 'dafuck2', 'dafuck3', 'dafuck4']},
+                            translate: ['Sneak pick', 'Marathon', 'Sweets', 'Very sicko']},
                         {path: '#webToonChoice/div.wtc_toonImgWrap/div[]/a[]',
                             assign: 'webtoonList', weekday: true, innerPath: {webtoonId: '-/a@href?btno', webtoonTitle: 'img@alt'}},
                         {path: '#wtc_slide_items/a[]',
