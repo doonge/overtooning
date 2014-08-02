@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.2
+// @version        1.0.3
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @include        http://webtoon.daum.net/*
 // @include        http://cartoon.media.daum.net/*
@@ -646,7 +646,9 @@ var overlayLoader = {
                 ],
                 css: [
                     {selector: '.toon_view_lst li p',
-                        style: 'overflow: hidden; position: relative;'}
+                        style: 'overflow: hidden; position: relative;'},
+                    {selector: 'img[style*="none"] + .toonreader_overlay', //memory release (?)
+                        style: 'display: none;'}
                 ]
             }
             ];
@@ -1146,7 +1148,7 @@ var overlayLoader = {
                 {  route: '/webtoon/index',
                     html: [
                         {path: 'div.wrap/div.container/div.toonTop/div/h3/span',
-                            translate: 'No Idea What'},
+                            translate: 'Today\'s'},
                         {path: '#webToonList/div.wtl_tabs/div.wtl_tabs_left/a[]/span',
                             translate: ['Weekday', 'Genre']},
                         {path: '#webToonList/div.wtl_table_day/table/thead/tr/th[]/span',
@@ -1156,7 +1158,7 @@ var overlayLoader = {
                     ],
                     css: [
                         {selector: '.toonTop h3 .a11y::after',
-                            style: 'content: " That Is?";'},
+                            style: 'content: " Selection";'},
                         {selector: '.wtl_tabs_left a',
                             style: 'font-size: 14px; position: relative; height: 18px !important;'},
                         {selector: '.wtl_tabs_left a span',
@@ -1969,13 +1971,17 @@ var overlayLoader = {
                                 Math.round(adaptedDimension[2] / overlayLoader.vars.imageList.node.height * overlayLoader.resource.naturalCanvas.height),
                                 Math.round(adaptedDimension[3] / overlayLoader.vars.imageList.node.height * overlayLoader.resource.naturalCanvas.height)
                             ];
+                            /*var decal = [
+                                adaptedDimension[0] + adaptedDimension[1] - overlayLoader.vars.imageList.node.width,
+                                adaptedDimension[2] + adaptedDimension[3] - overlayLoader.vars.imageList.node.height
+                            ];*/
                             overlayLoader.resource.adaptedCanvas[0] = overlayLoader.create('canvas', {width: adaptedDimension[0], height: adaptedDimension[2], style: 'position: absolute; top: 0; left: 0;'});
                             overlayLoader.resource.adaptedCanvas[0].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, 0, 0, naturalDimension[0], naturalDimension[2], 0, 0, adaptedDimension[0], adaptedDimension[2]);
-                            overlayLoader.resource.adaptedCanvas[1] = overlayLoader.create('canvas', {width: adaptedDimension[1], height: adaptedDimension[2], style: 'position: absolute; top: 0; right:0;'});
+                            overlayLoader.resource.adaptedCanvas[1] = overlayLoader.create('canvas', {width: adaptedDimension[1], height: adaptedDimension[2], style: /*'margin-left: -'+(decal[0])+'px'*/'position: absolute; top: 0; right:0;'});
                             overlayLoader.resource.adaptedCanvas[1].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, overlayLoader.resource.naturalCanvas.width - naturalDimension[1], 0, naturalDimension[1], naturalDimension[2], 0, 0, adaptedDimension[1], adaptedDimension[2]);
-                            overlayLoader.resource.adaptedCanvas[2] = overlayLoader.create('canvas', {width: adaptedDimension[0], height: adaptedDimension[3], style: 'position: absolute; bottom: 0; left: 0;'});
+                            overlayLoader.resource.adaptedCanvas[2] = overlayLoader.create('canvas', {width: adaptedDimension[0], height: adaptedDimension[3], style: /*'margin-top: -'+(decal[1])+'px'*/'position: absolute; bottom: 0; left: 0;'});
                             overlayLoader.resource.adaptedCanvas[2].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, 0, overlayLoader.resource.naturalCanvas.height - naturalDimension[3], naturalDimension[0], naturalDimension[3], 0, 0, adaptedDimension[0], adaptedDimension[3]);
-                            overlayLoader.resource.adaptedCanvas[3] = overlayLoader.create('canvas', {width: adaptedDimension[1], height: adaptedDimension[3], style: 'position: absolute; bottom: 0; right: 0;'});
+                            overlayLoader.resource.adaptedCanvas[3] = overlayLoader.create('canvas', {width: adaptedDimension[1], height: adaptedDimension[3], style: /*'margin-left: -'+(decal[0])+'px; margin-top: -'+decal[1]+'px'*/'position: absolute; bottom: 0; right: 0;'});
                             overlayLoader.resource.adaptedCanvas[3].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, overlayLoader.resource.naturalCanvas.width - naturalDimension[1], overlayLoader.resource.naturalCanvas.height - naturalDimension[3], naturalDimension[1], naturalDimension[3], 0, 0, adaptedDimension[1], adaptedDimension[3]);
                         } else {
                             var emptyNodeText = overlayLoader.create(' ');
