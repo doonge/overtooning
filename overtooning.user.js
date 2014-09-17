@@ -2,13 +2,12 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.3
+// @version        1.0.4
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @include        http://webtoon.daum.net/*
 // @include        http://cartoon.media.daum.net/*
 // @include        http://comic.naver.com/*
 // @include        http://m.comic.naver.com/*
-// @include        http://m.webtoons.com/*
 // @include        http://comics.nate.com/*
 // @include        http://webtoon.olleh.com/*
 // @include        http://ttale.com/*
@@ -23,7 +22,7 @@ var TEXT = {
     //Time
     mon: 'mon', tue: 'tue', wed: 'wed', thu: 'thu', fri: 'fri', sat: 'sat', sun: 'sun',
     monday: 'monday', tuesday: 'tuesday', wednesday: 'wednesday', thursday: 'thursday', friday: 'friday', saturday: 'saturday', sunday: 'sunday',
-    week: 'week', weekDay: 'weekday', month: 'month', year: 'year', today: 'today',
+    week: 'week', weekday: 'weekday', month: 'month', year: 'year', today: 'today',
     monthly: 'monthly', weekly: 'weekly',
     //Genre - comment: historical > history, and shorter 'slice of life'??
     webtoon: 'webtoon', bestChallenge: 'best challenge', challenge: 'challenge', smartoon: 'smarttoon',
@@ -98,7 +97,7 @@ if(!MutationObserver) {
 var overlayLoader = {
     defaultData: {
         feedList: [
-            {url: 'http://feed.oddsquad.org', name: 'OddSquad Scanlation', lastUpdate: 0},
+            {url: 'http://bumblebits.net/oddsquad/feed', name: 'OddSquad Scanlation', lastUpdate: 0},
             {url: 'http://blackhorus.bumblebits.net', name: 'BlackHorus Scans', lastUpdate: 0},
         ],
         webtoonList: []
@@ -130,7 +129,7 @@ var overlayLoader = {
     // --------------------- DEFINITIONS
     loadTemplate: function() {
         //------------------------------- M.WEBTOONS.COM $line
-        if(window.location.hostname == 'm.webtoons.com') {
+        /*if(window.location.hostname == 'm.webtoons.com') {
             this.template = [
             {  route: '',
                 css: [
@@ -144,7 +143,7 @@ var overlayLoader = {
             }
             ];
         //------------------------------- COMIC.NAVER.COM $naver
-        } else if(window.location.hostname == 'comic.naver.com') {
+        } else */if(window.location.hostname == 'comic.naver.com') {
             this.template = [
             {  route: '',
                 html: [
@@ -555,7 +554,7 @@ var overlayLoader = {
                     {path: 'header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; border: #333 1px solid; z-index: 40;',
                         assign: 'menu'},
                     {path: 'div.ht/div/ul/li[]/a/span',
-                        translate: [TEXT.capitalize(TEXT.weekDay), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
+                        translate: [TEXT.capitalize(TEXT.weekday), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
                     {path: 'div.ht/div/ul/li/+/li/+/li/+/li/+/li/a',
                         translate: TEXT.capitalize(TEXT.smartoon)},
             ]},
@@ -608,7 +607,7 @@ var overlayLoader = {
                     {path: '#fixedHeader/header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; border: #333 1px solid; z-index: 40;',
                         assign: 'menu'},
                     {path: '#fixedHeader/div.ht/div/ul/li[]/a/span',
-                        translate: [TEXT.capitalize(TEXT.weekDay), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
+                        translate: [TEXT.capitalize(TEXT.weekday), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
                     {path: '#fixedHeader/div.ht/div/ul/li/+/li/+/li/+/li/+/li/a',
                         translate: TEXT.capitalize(TEXT.smartoon)},
                     {path: '#fixedHeader/div.chh/h1',
@@ -2196,7 +2195,7 @@ var overlayLoader = {
         }
         if(overlayLoader.queries.length) {
             var j = overlayLoader.queries[0].feedID;
-            var queryUrl = this.data.feedList[j].url + '/' + window.location.hostname + '/' + (this.value(this.vars.webtoonId) || '0') + '/' + (this.value(this.vars.chapterId) || '0') + '.json?' + (this.data.feedList[j].lastUpdate ? this.MTime() - this.data.feedList[j].lastUpdate+1 : 0).toString();
+            var queryUrl = this.data.feedList[j].url + '/' + window.location.hostname + '/' + (this.value(this.vars.webtoonId) || '0') + '/' + (this.value(this.vars.chapterId) || '0') + '.json?' + (this.data.feedList[j].lastUpdate ? Math.abs(this.MTime() - this.data.feedList[j].lastUpdate+1) : 0).toString();
             overlayLoader.cors(
                 queryUrl, 'GET', '', '',
                 function(data) {overlayLoader.shiftQueries(data);},
