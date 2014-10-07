@@ -1,17 +1,17 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.4
+// @version        1.0.5
 // @description    Load overlay from scanlation teams while browsing original webtoons.
-// @include        http://webtoon.daum.net/*
-// @include        http://cartoon.media.daum.net/*
-// @include        http://comic.naver.com/*
-// @include        http://m.comic.naver.com/*
-// @include        http://comics.nate.com/*
-// @include        http://webtoon.olleh.com/*
-// @include        http://ttale.com/*
-// @include        http://www.lezhin.com/*
+// @match          http://webtoon.daum.net/*
+// @match          http://cartoon.media.daum.net/*
+// @match          http://comic.naver.com/*
+// @match          http://m.comic.naver.com/*
+// @match          http://comics.nate.com/*
+// @match          http://webtoon.olleh.com/*
+// @match          http://ttale.com/*
+// @match          http://www.lezhin.com/*
 // @grant          none
 // ==/UserScript==
 
@@ -453,14 +453,16 @@ var overlayLoader = {
                         translate: TEXT.capitalize(TEXT.remote)},
                     {path: '#goButton/span', className: ' ', style: 'margin: 0; color: black;',
                         translate: TEXT.go + '!'},
-                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.up', style: 'width: 30px;',
+                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.btn_up', style: 'width: 30px;',
                         translate: TEXT.top},
-                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.down', style: 'width: 30px;',
+                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.btn_down', style: 'width: 30px;',
                         translate: TEXT.bottom},
-                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.lst', style: 'width: 20px;',
+                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.btn_lst', style: 'width: 20px;',
                         translate: TEXT.list},
                     {path: '#comicRemocon/div.remote_cont/a.tit',
                         assign: 'webtoonTitle'},
+                    {path: '#btnRemoteConOnOff/', observe: '#btnRemoteConOnOff',
+                        translate: TEXT.capitalize(TEXT.remote) + ' '},
                 ],
                 css: [
                     {selector: '.btn_group li .book_maker, .btn_group li .first, .btn_group li .lst, .btn_group li .other, .btn_group li .other2',
@@ -470,7 +472,13 @@ var overlayLoader = {
                     {selector: '.btn_group li .book_maker span::before',
                         style: 'content: \'★ \'; color: #17ce29; text-shadow: 0 0 1px #16b225;'},
                     {selector: '.remote_cont .pg_area a',
-                        style: 'background: none; border: 1px solid grey; border-radius: 2px; box-sizing: border-box;'}
+                        style: 'background: none; border: 1px solid grey; border-radius: 2px; box-sizing: border-box;'},
+                    {selector: '.remote_cont .pg_area .btn_move',
+                        style: 'background: none; border: 1px solid grey; border-radius: 2px; box-sizing: border-box; text-indent: 0;'},
+                    {selector: '.remote_area .btn_bx.btn_remote',
+                        style: 'width: 68px;'},
+                    {selector: '.vote_lst .rt dd.date',
+                        style: 'padding: 3px 5px 0px 0px;'}
                 ]
             },
             {  route: '/index',
@@ -1523,6 +1531,9 @@ var overlayLoader = {
         // ------------------ linearize []s and sort path definitions
         this.resource.search = [];
         this.loadTemplate();
+        if(this.template.length == 0) { //script was run from a wrong website, or no template yet. (chrome auto-conversion from userscript wrongly interprets @include).
+            return;
+        }
         this.stylesheet = this.create('style', {}); //styling through document.styleSheets throws security errors in Firefox. Don't want to rely on GM_Style.
         for(var index = 0; index < this.template.length; index++) {
             if( new RegExp('^' + this.template[index].route.replace(/\\/g, '').replace(/\./g, '\\.').replace(/\//g, '\/')).test(window.location.pathname/* + window.location.hash*/) ) {
