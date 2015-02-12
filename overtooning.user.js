@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.5
+// @version        1.0.6
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @match          http://webtoon.daum.net/*
 // @match          http://cartoon.media.daum.net/*
@@ -113,7 +113,7 @@ var overlayLoader = {
     publisher: 'unknown',
     activeFeed: false,
 
-    resource: {timer: false, styling: ''}, //Stores values for the load function ?
+    resource: {timer: false, styling: '', rawImage: new Image(), overlay: new Image()}, //Stores values for the load function ?
     keyList: [  '0TYxZWNhOWVhNGViYmViMDM5YjczNzkwNTFYzczZjc45GFDg%#$1234%#$@5',
                 'ZGI1ODliZTJmMDQzYjRiMGM1MjdkODllOWI5ZWVmYzkDFK(*lIYUtU%^YHERT%',
                 'NmUwYzZiMDU5MWU4ZGM4OTliOTE1MTU5Yzc3Nzg0NzYHFG$^*46&$^#@#$@$3',
@@ -147,7 +147,7 @@ var overlayLoader = {
             this.template = [
             {  route: '',
                 html: [
-                    {path: '#header/ul.service/+', tagName: 'div', style: 'display: inline-block; width: 30px; height: 15px; margin-top: 2px; cursor: pointer;',
+                    {path: '#snb_wrap/h1/a.h_novel/+', tagName: 'div', style: 'display: inline-block; float: left; width: 30px; height: 15px; margin: 5px 10px 0 0; cursor: pointer;',
                         assign: 'menu'},
                     {path: '#menu/ul/li[]/a/em',
                         translate: [TEXT.index, TEXT.webtoon, TEXT.bestChallenge, TEXT.challenge, TEXT.recommended, TEXT.MY]}
@@ -1642,15 +1642,11 @@ var overlayLoader = {
                     document.oncontextmenu = null;
                     document.onselectstart = null;
                     //end;
-                    var logs = overlayLoader.create('div', {style: 'position: fixed; width: 80%; height: 80%; background: #DDD; top: 10%; left: 10%; z-index: 99999; text-align: left; border: 1px solid black; border-radius: 1em;'},
-                        overlayLoader.create('div', {style: 'padding: 0.5em 1em;; position: relative; background: white; font-weight: bold; border-bottom: 1px solid black; margin-bottom: 1em; border-radius: 1em 1em 0 0;', textContent: 'Overtooning CONSOLE'},
-                            overlayLoader.create('span', {style: 'cursor: pointer; position: absolute; display: inline-block; width: 10%; text-align: right; right: 1em;', textContent: 'close', onclick: function(){document.body.removeChild(this.parentNode.parentNode);}})
-                        )
-                    );
+                    var logs = overlayLoader.create('div', {});
                     for(var i = 0; i < overlayLoader.log.length; i++) {
                         logs.appendChild(overlayLoader.create('p', {textContent: overlayLoader.log[i], style: 'padding: 0 1em;'}));
                     }
-                    document.body.appendChild(logs);
+                    overlayLoader.console(logs);
                 }
             }));
         }
@@ -1706,8 +1702,104 @@ var overlayLoader = {
             }
         }
         overlayLoader.addLog("[overlayLoader.run] End.");
+        // defining onload and onerror for resource.images.
+        overlayLoader.resource.rawImage.onload = function() {
+            if(overlayLoader.vars.imageList.node.nextSibling && overlayLoader.vars.imageList.node.nextSibling.className == 'toonreader_overlay') { //probably pageflip (refresh process).
+                overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.nextSibling);
+            }
+            var tmpImageId = overlayLoader.vars.imageId;
+            if(overlayLoader.vars.shuffleImage && overlayLoader.vars.shuffleImage[tmpImageId]) {
+                tmpImageId = tmpImageId + parseInt(overlayLoader.vars.shuffleImage[tmpImageId], 10);
+            }
+            if(overlayLoader.vars.startingImage) {
+                tmpImageId += parseInt(overlayLoader.value(overlayLoader.vars.startingImage), 10);
+            }
+            overlayLoader.resource.imageId = tmpImageId +1;
+            overlayLoader.cors(
+                overlayLoader.resource.generalUrl.replace('{imgNumber}', overlayLoader.digit(overlayLoader.resource.imageId)),
+                'GET', 'arraybuffer', null,
+                function(data) {
+                    var byteArray = new Uint8Array(data);
+                    var binaryString = '';
+                    for (var i = 0; i < byteArray.byteLength; i++) {
+                        binaryString += String.fromCharCode(byteArray[i]); //extracting the bytes
+                    }
+                    if(overlayLoader.resource.salt) {
+                        binaryString = overlayLoader.shuffle(binaryString);
+                    }
+                    var base64 = window.btoa(binaryString); //creating base64 string
+                    overlayLoader.resource.overlay.src = "data:image/png;base64," + base64;
+                },
+                function(error) {
+                    overlayLoader.addLog('[overlayLoader.canvas] ('+overlayLoader.vars.imageId+') CORS failed.');
+                    overlayLoader.getNextImage();
+                }
+            );
+        };
+        overlayLoader.resource.rawImage.onerror = function() {
+            overlayLoader.addLog('[overlayLoader.canvas] Raw image '+overlayLoader.vars.imageId+' has problems loading.');
+            overlayLoader.getNextImage();
+        };
+        overlayLoader.resource.overlay.onload = function() {
+            var overlayContainer = overlayLoader.create('div', {className: 'toonreader_overlay',
+                style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;' + (overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '') + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')}
+            );
+            overlayLoader.vars.imageList.node.parentNode.insertBefore(overlayContainer, overlayLoader.vars.imageList.node.nextSibling);
+            
+            var start = 0, naturalCanvas;
+            while(start != overlayLoader.resource.rawImage.naturalHeight) {
+                if(start > 0) {
+                    start -= Math.floor((Math.random() * 15) + 3);
+                }
+                var height = 500;
+                if(start + height > overlayLoader.resource.rawImage.naturalHeight) {
+                    height = overlayLoader.resource.rawImage.naturalHeight - start;
+                }
+                naturalCanvas = overlayLoader.create('canvas', {width: overlayLoader.resource.rawImage.naturalWidth, height: height, style: 'position: absolute; top: ' + start + 'px; left: 0;'});
+                naturalCanvas.getContext('2d').drawImage(overlayLoader.resource.rawImage, 0, start, overlayLoader.resource.rawImage.naturalWidth, height, 0, 0, overlayLoader.resource.rawImage.naturalWidth, height);
+                naturalCanvas.getContext('2d').drawImage(overlayLoader.resource.overlay, 0, start, overlayLoader.resource.rawImage.naturalWidth, height,  0, 0, overlayLoader.resource.rawImage.naturalWidth, height);
+                if(overlayLoader.vars.imageList.node.height != overlayLoader.resource.rawImage.naturalHeight) {
+                    var heightMod = overlayLoader.vars.imageList.node.height / overlayLoader.resource.rawImage.naturalHeight;
+                    var widthMod = overlayLoader.vars.imageList.node.width / overlayLoader.resource.rawImage.naturalWidth;
+                    var adaptedCanvas = overlayLoader.create('canvas', {width: overlayLoader.vars.imageList.node.width, height: Math.round(height*heightMod), style: 'position: absolute; top: ' + Math.round(start*heightMod) + 'px; left: 0;'});
+                    adaptedCanvas.getContext('2d').drawImage(naturalCanvas, 0, 0, adaptedCanvas.width, adaptedCanvas.height);
+                    if(start == 0) {
+                        overlayLoader.addLog('[overlayLoader.canvas] (beta) Adjusted size for canvas.');
+                    }
+                    overlayContainer.appendChild(adaptedCanvas);
+                } else {
+                    overlayContainer.appendChild(naturalCanvas);
+                }
+                start += height;
+            }
+            
+            overlayContainer.appendChild(overlayLoader.create('div', {style: 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;'})); //right-click added protection.
+            if(!overlayLoader.vars.imageList.innerPath.keepOriginal) {
+                overlayLoader.vars.imageList.node = overlayLoader.vars.imageList.node.nextSibling;
+                overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.previousSibling);
+            }
+            overlayLoader.getNextImage();
+        };
+        overlayLoader.resource.overlay.onerror = function() {
+            overlayLoader.addLog('[overlayLoader.canvas] overlay '+overlayLoader.vars.imageId+' could not load, check the salt.');
+            overlayLoader.getNextImage();
+        };
+        // ---------------------------------------------------
         this.shiftQueries(false, true);
         return true;
+    },
+    
+    console: function(element) {
+        var console = overlayLoader.create('div', {style: 'position: absolute; width: 80%; min-height: 80%; background: #DDD; top: 10%; left: 10%; z-index: 99999; text-align: left; border: 1px solid black; border-radius: 1em;'},
+            overlayLoader.create('div', {style: 'padding: 0.5em 1em;; position: relative; background: white; font-weight: bold; border-bottom: 1px solid black; margin-bottom: 1em; border-radius: 1em 1em 0 0;'},
+                overlayLoader.create('span', {style: 'font-size: 1.1em;', textContent: 'OverTooning CONSOLE'}),
+                //overlayLoader.create('span', {style: 'display: inline-block; padding: 0 1em;', textContent: 'Reset'}),
+                //overlayLoader.create('span', {style: 'display: inline-block; padding: 0 1em;', textContent: 'Manager'}),
+                overlayLoader.create('span', {style: 'cursor: pointer; position: absolute; display: inline-block; width: 10%; text-align: right; right: 1em;', textContent: 'close', onclick: function(){document.body.removeChild(this.parentNode.parentNode);}})
+            ),
+            element ? element : null
+        );
+        document.body.appendChild(console);
     },
     
     addLog: function(stringLog) {
@@ -1934,108 +2026,6 @@ var overlayLoader = {
         if(overlayLoader.resource.timer) {
             window.clearTimeout(overlayLoader.resource.timer);
         }
-        overlayLoader.resource.rawImage = new Image();
-        overlayLoader.resource.rawImage.onload = function() {
-            if(overlayLoader.vars.imageList.node.nextSibling && overlayLoader.vars.imageList.node.nextSibling.className == 'toonreader_overlay') { //probably pageflip (refresh process).
-                overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.nextSibling);
-            }
-            var tmpImageId = overlayLoader.vars.imageId;
-            if(overlayLoader.vars.shuffleImage && overlayLoader.vars.shuffleImage[tmpImageId]) {
-                tmpImageId = tmpImageId + parseInt(overlayLoader.vars.shuffleImage[tmpImageId], 10);
-            }
-            if(overlayLoader.vars.startingImage) {
-                tmpImageId += parseInt(overlayLoader.value(overlayLoader.vars.startingImage), 10);
-            }
-            overlayLoader.resource.imageId = tmpImageId +1;
-            
-            overlayLoader.resource.naturalCanvas = overlayLoader.create('canvas', {width: this.width, height: this.height, style: 'position: absolute; top: 0; left: 0;'});
-            overlayLoader.resource.naturalCanvas.getContext('2d').drawImage(this, 0, 0, this.width, this.height); //set the background (copy the raw).
-            overlayLoader.cors(
-                overlayLoader.resource.generalUrl.replace('{imgNumber}', overlayLoader.digit(overlayLoader.resource.imageId)),
-                'GET', 'arraybuffer', null,
-                function(data) {
-                    var byteArray = new Uint8Array(data);
-                    var binaryString = '';
-                    for (var i = 0; i < byteArray.byteLength; i++) {
-                        binaryString += String.fromCharCode(byteArray[i]); //extracting the bytes
-                    }
-                    if(overlayLoader.resource.salt) {
-                        binaryString = overlayLoader.shuffle(binaryString);
-                    }
-                    var base64 = window.btoa(binaryString); //creating base64 string
-                    var img = new Image();
-                    img.onload = function() {
-                        overlayLoader.resource.naturalCanvas.getContext('2d').drawImage(this, 0, 0, this.width, this.height); //copy the overlay onto natural canvas.
-                        if(overlayLoader.resource.salt && overlayLoader.resource.naturalCanvas.width > 3 && overlayLoader.resource.naturalCanvas.height > 3 && overlayLoader.vars.imageList.node.width > 3 && overlayLoader.vars.imageList.node.height > 3) {
-                            var varWidth = Math.random()*0.05 +0.01, varHeight = Math.random()*0.05 +0.01, riftWidth = Math.random()*0.6 +0.2, riftHeight = Math.random()*0.6 +0.2;
-                            overlayLoader.resource.adaptedCanvas = [];
-                            var adaptedDimension = [
-                                Math.round((overlayLoader.vars.imageList.node.width-2) * (riftWidth + varWidth) +1),
-                                Math.round((overlayLoader.vars.imageList.node.width-2) * (1 - riftWidth + varWidth) +1),
-                                Math.round((overlayLoader.vars.imageList.node.height-2) * (riftHeight + varHeight) +1),
-                                Math.round((overlayLoader.vars.imageList.node.height-2) * (1 - riftHeight + varHeight) +1)
-                            ];
-                            var naturalDimension = [
-                                Math.round(adaptedDimension[0] / overlayLoader.vars.imageList.node.width * overlayLoader.resource.naturalCanvas.width),
-                                Math.round(adaptedDimension[1] / overlayLoader.vars.imageList.node.width * overlayLoader.resource.naturalCanvas.width),
-                                Math.round(adaptedDimension[2] / overlayLoader.vars.imageList.node.height * overlayLoader.resource.naturalCanvas.height),
-                                Math.round(adaptedDimension[3] / overlayLoader.vars.imageList.node.height * overlayLoader.resource.naturalCanvas.height)
-                            ];
-                            /*var decal = [
-                                adaptedDimension[0] + adaptedDimension[1] - overlayLoader.vars.imageList.node.width,
-                                adaptedDimension[2] + adaptedDimension[3] - overlayLoader.vars.imageList.node.height
-                            ];*/
-                            overlayLoader.resource.adaptedCanvas[0] = overlayLoader.create('canvas', {width: adaptedDimension[0], height: adaptedDimension[2], style: 'position: absolute; top: 0; left: 0;'});
-                            overlayLoader.resource.adaptedCanvas[0].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, 0, 0, naturalDimension[0], naturalDimension[2], 0, 0, adaptedDimension[0], adaptedDimension[2]);
-                            overlayLoader.resource.adaptedCanvas[1] = overlayLoader.create('canvas', {width: adaptedDimension[1], height: adaptedDimension[2], style: /*'margin-left: -'+(decal[0])+'px'*/'position: absolute; top: 0; right:0;'});
-                            overlayLoader.resource.adaptedCanvas[1].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, overlayLoader.resource.naturalCanvas.width - naturalDimension[1], 0, naturalDimension[1], naturalDimension[2], 0, 0, adaptedDimension[1], adaptedDimension[2]);
-                            overlayLoader.resource.adaptedCanvas[2] = overlayLoader.create('canvas', {width: adaptedDimension[0], height: adaptedDimension[3], style: /*'margin-top: -'+(decal[1])+'px'*/'position: absolute; bottom: 0; left: 0;'});
-                            overlayLoader.resource.adaptedCanvas[2].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, 0, overlayLoader.resource.naturalCanvas.height - naturalDimension[3], naturalDimension[0], naturalDimension[3], 0, 0, adaptedDimension[0], adaptedDimension[3]);
-                            overlayLoader.resource.adaptedCanvas[3] = overlayLoader.create('canvas', {width: adaptedDimension[1], height: adaptedDimension[3], style: /*'margin-left: -'+(decal[0])+'px; margin-top: -'+decal[1]+'px'*/'position: absolute; bottom: 0; right: 0;'});
-                            overlayLoader.resource.adaptedCanvas[3].getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, overlayLoader.resource.naturalCanvas.width - naturalDimension[1], overlayLoader.resource.naturalCanvas.height - naturalDimension[3], naturalDimension[1], naturalDimension[3], 0, 0, adaptedDimension[1], adaptedDimension[3]);
-                        } else {
-                            var emptyNodeText = overlayLoader.create(' ');
-                            if(overlayLoader.vars.imageList.node.width != overlayLoader.resource.naturalCanvas.width || overlayLoader.vars.imageList.node.width != overlayLoader.resource.naturalCanvas.height) {
-                                var adaptedCanvas = overlayLoader.create('canvas', {width: overlayLoader.vars.imageList.node.width, height: overlayLoader.vars.imageList.node.height, style: 'position: absolute; top: 0; left: 0;'});
-                                adaptedCanvas.getContext('2d').drawImage(overlayLoader.resource.naturalCanvas, 0, 0, adaptedCanvas.width, adaptedCanvas.height);
-                                overlayLoader.resource.adaptedCanvas = [adaptedCanvas, emptyNodeText, emptyNodeText, emptyNodeText];
-                            } else {
-                                    overlayLoader.resource.adaptedCanvas = [overlayLoader.resource.naturalCanvas, emptyNodeText, emptyNodeText, emptyNodeText];
-                            }
-                        }
-                        var tempStyle = overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '';
-                        overlayLoader.vars.imageList.node.parentNode.insertBefore( 
-                            overlayLoader.create('div', {className: 'toonreader_overlay', style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;'+ tempStyle + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')},
-                                overlayLoader.resource.adaptedCanvas[0],
-                                overlayLoader.resource.adaptedCanvas[1],
-                                overlayLoader.resource.adaptedCanvas[2],
-                                overlayLoader.resource.adaptedCanvas[3],
-                                overlayLoader.create('div', {style: 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;'}) //right-click added protection.
-                            ),
-                            overlayLoader.vars.imageList.node.nextSibling
-                        );
-                        if(!overlayLoader.vars.imageList.innerPath.keepOriginal) {
-                            overlayLoader.vars.imageList.node = overlayLoader.vars.imageList.node.nextSibling;
-                            overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.previousSibling);
-                        }
-                        overlayLoader.getNextImage();
-                    };
-                    img.onerror = function() {
-                        overlayLoader.addLog('[overlayLoader.canvas] overlay '+overlayLoader.vars.imageId+' could not load, check the salt.');
-                        overlayLoader.getNextImage();
-                    };
-                    img.src = "data:image/png;base64," + base64; //creating a base64 uri
-                },
-                function(error) {
-                    overlayLoader.addLog('[overlayLoader.canvas] ('+overlayLoader.vars.imageId+') CORS failed.');
-                    overlayLoader.getNextImage();
-                }
-            );
-        };
-        overlayLoader.resource.rawImage.onerror = function() {
-            overlayLoader.addLog('[overlayLoader.canvas] Raw image '+overlayLoader.vars.imageId+' has problems loading.');
-            overlayLoader.getNextImage();
-        };
         overlayLoader.resource.rawImage.src = pathObject.node.src;
     },
     
@@ -2044,6 +2034,9 @@ var overlayLoader = {
         overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node.nextSibling, overlayLoader.vars.imageList.next);
         if(overlayLoader.vars.imageList.node) {
                 overlayLoader.canvas();
+        } else {
+            overlayLoader.resource.rawImage = null;
+            overlayLoader.resource.overlay = null;
         }
     },
     
