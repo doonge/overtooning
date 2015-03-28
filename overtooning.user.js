@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.6
+// @version        1.0.7
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @match          http://webtoon.daum.net/*
 // @match          http://cartoon.media.daum.net/*
@@ -1525,7 +1525,7 @@ var overlayLoader = {
     
     // ----------------- OVERLAYLOADER.RUN $run
     run: function() {
-        if (window.top !== window.self || frameElement) {
+        if (window.top !== window.self || window.frameElement) {
             return;
         }
         // ------------------ linearize []s and sort path definitions

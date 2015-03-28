@@ -14,4 +14,14 @@ http://bhscans.blogspot.com
 http://bidhangingaddnine.wordpress.com
 http://kubera-tn.weebly.com/blog
 
+TODO List:
+- GODDAM MENU.
+- Separate templating from the main script. ( /{referer}/template.json ).
+- Add language support. ( modified example: /{referer}/{lang}/template.json ).
+- Improve the fetch function for better looking templates.
+- Another icon than the british flag.
+- Lower browser requirement for unsalted overlays (Image() instead of CORS call).
+- Support for shuffled Images(low priority).
+- Testing of custom URLs feature (exists but curently not used, low priority).
+
 First project on github, and not experienced, so no license yet (will be open) and no much written yet (userscript is operational though).
