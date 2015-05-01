@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.7
+// @version        1.0.8
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @match          http://webtoon.daum.net/*
 // @match          http://cartoon.media.daum.net/*
@@ -128,22 +128,8 @@ var overlayLoader = {
     
     // --------------------- DEFINITIONS
     loadTemplate: function() {
-        //------------------------------- M.WEBTOONS.COM $line
-        /*if(window.location.hostname == 'm.webtoons.com') {
-            this.template = [
-            {  route: '',
-                css: [
-                    {selector: '.viewer_img',
-                        style: 'height: auto !important;'},
-                    {selector: '.flick-container .flick-ct',
-                        style: 'text-align: center; float: none;'},
-                    {selector: '.flick-container .flick-ct img',
-                        style: 'width: auto; height: auto;'},
-                ]
-            }
-            ];
         //------------------------------- COMIC.NAVER.COM $naver
-        } else */if(window.location.hostname == 'comic.naver.com') {
+        if(window.location.hostname == 'comic.naver.com') {
             this.template = [
             {  route: '',
                 html: [
@@ -179,8 +165,14 @@ var overlayLoader = {
             },
             {  route: '/webtoon/(detail|list|weekday|weekdayList)',
                 html: [
-                    {path: '#content/ul.category_tab/li[]/a', style: 'text-transform: capitalize;',
+                    {path: '#content/div/+/ul.category_tab/li[]/a', style: 'text-transform: capitalize;', //Fix for Firefox "new session" bug (two category_tab instead of one??).
                         translate: [TEXT.week, TEXT.monday, TEXT.tuesday, TEXT.wednesday, TEXT.thursday, TEXT.friday, TEXT.saturday, TEXT.sunday]}
+            ],
+            css: [
+                {selector: '.category_tab',
+                        style: 'display: none;'},
+                {selector: 'div + .category_tab',
+                    style: 'display: block;'},
             ]},
             {  route: '/webtoon/(genre|period|finish)',
                 html: [
@@ -1740,6 +1732,16 @@ var overlayLoader = {
             overlayLoader.addLog('[overlayLoader.canvas] Raw image '+overlayLoader.vars.imageId+' has problems loading.');
             overlayLoader.getNextImage();
         };
+        
+        var ctx = document.createElement("canvas").getContext("2d"),
+            dpr = window.devicePixelRatio || 1,
+            bsr = ctx.webkitBackingStorePixelRatio ||
+                  ctx.mozBackingStorePixelRatio ||
+                  ctx.msBackingStorePixelRatio ||
+                  ctx.oBackingStorePixelRatio ||
+                  ctx.backingStorePixelRatio || 1;
+        overlayLoader.resource.pixelRatio = dpr / bsr;
+        
         overlayLoader.resource.overlay.onload = function() {
             var overlayContainer = overlayLoader.create('div', {className: 'toonreader_overlay',
                 style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;' + (overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '') + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')}
@@ -1758,18 +1760,28 @@ var overlayLoader = {
                 naturalCanvas = overlayLoader.create('canvas', {width: overlayLoader.resource.rawImage.naturalWidth, height: height, style: 'position: absolute; top: ' + start + 'px; left: 0;'});
                 naturalCanvas.getContext('2d').drawImage(overlayLoader.resource.rawImage, 0, start, overlayLoader.resource.rawImage.naturalWidth, height, 0, 0, overlayLoader.resource.rawImage.naturalWidth, height);
                 naturalCanvas.getContext('2d').drawImage(overlayLoader.resource.overlay, 0, start, overlayLoader.resource.rawImage.naturalWidth, height,  0, 0, overlayLoader.resource.rawImage.naturalWidth, height);
-                if(overlayLoader.vars.imageList.node.height != overlayLoader.resource.rawImage.naturalHeight) {
+                
+                if(overlayLoader.vars.imageList.node.height != overlayLoader.resource.rawImage.naturalHeight || overlayLoader.resource.pixelRatio != 1) {
                     var heightMod = overlayLoader.vars.imageList.node.height / overlayLoader.resource.rawImage.naturalHeight;
                     var widthMod = overlayLoader.vars.imageList.node.width / overlayLoader.resource.rawImage.naturalWidth;
-                    var adaptedCanvas = overlayLoader.create('canvas', {width: overlayLoader.vars.imageList.node.width, height: Math.round(height*heightMod), style: 'position: absolute; top: ' + Math.round(start*heightMod) + 'px; left: 0;'});
-                    adaptedCanvas.getContext('2d').drawImage(naturalCanvas, 0, 0, adaptedCanvas.width, adaptedCanvas.height);
+                    
                     if(start == 0) {
-                        overlayLoader.addLog('[overlayLoader.canvas] (beta) Adjusted size for canvas.');
+                        overlayLoader.addLog('[overlayLoader.canvas] Adjusting size: Width '+widthMod+' - Height '+heightMod+' - Retina '+overlayLoader.resource.pixelRatio);
                     }
-                    overlayContainer.appendChild(adaptedCanvas);
-                } else {
-                    overlayContainer.appendChild(naturalCanvas);
+                    
+                    var copyCanvas = overlayLoader.create('canvas', {
+                        width: Math.round(naturalCanvas.width * widthMod * overlayLoader.resource.pixelRatio),
+                        height: Math.round(naturalCanvas.height * widthMod * overlayLoader.resource.pixelRatio),
+                        style: 'position: absolute; top: ' + Math.round(start * heightMod) + 'px; left: 0;'}
+                    );
+                    copyCanvas.style.width =  overlayLoader.vars.imageList.node.width +'px';
+                    copyCanvas.style.height =  Math.round(height * heightMod) +'px';
+                    copyCanvas.getContext('2d').setTransform(widthMod * overlayLoader.resource.pixelRatio, 0, 0, heightMod * overlayLoader.resource.pixelRatio, 0, 0);
+                    copyCanvas.getContext('2d').drawImage(naturalCanvas, 0, 0);
+                    naturalCanvas = copyCanvas;
+                    delete copyCanvas;
                 }
+                overlayContainer.appendChild(naturalCanvas);
                 start += height;
             }
             
