@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.8
+// @version        1.0.9
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @match          http://webtoon.daum.net/*
 // @match          http://cartoon.media.daum.net/*
@@ -1694,10 +1694,16 @@ var overlayLoader = {
             }
         }
         overlayLoader.addLog("[overlayLoader.run] End.");
-        // defining onload and onerror for resource.images.
         overlayLoader.resource.rawImage.onload = function() {
+            overlayLoader.resource.busy = true;
             if(overlayLoader.vars.imageList.node.nextSibling && overlayLoader.vars.imageList.node.nextSibling.className == 'toonreader_overlay') { //probably pageflip (refresh process).
-                overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.nextSibling);
+                if(window.location.hostname == 'm.comic.naver.com') {
+                    overlayLoader.addLog('[overlayLoader.canvas] ('+overlayLoader.vars.imageId+') Canvas already loaded.');
+                    overlayLoader.getNextImage();
+                    return true;
+                } else { //pageflip
+                    overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.nextSibling);
+                }
             }
             var tmpImageId = overlayLoader.vars.imageId;
             if(overlayLoader.vars.shuffleImage && overlayLoader.vars.shuffleImage[tmpImageId]) {
@@ -2031,17 +2037,54 @@ var overlayLoader = {
             return false;
         }
         overlayLoader.vars.imageList.node = pathObject.node;
-        if(pathObject.node.getAttribute('data-lazy-src') && (pathObject.node.getAttribute('data-lazy-src') != pathObject.node.src ||  pathObject.node.getAttribute('data-lazy-loaded') != 'true' || pathObject.node.getAttribute('data-lazy-resized') != 'true')) { //lazy loading (m.naver), postpone.
-            overlayLoader.resource.timer = window.setTimeout(function() {overlayLoader.canvas();}, 1000);
-            return false;
-        }
-        if(overlayLoader.resource.timer) {
-            window.clearTimeout(overlayLoader.resource.timer);
+        if(window.location.hostname == 'm.comic.naver.com' && !overlayLoader.resource.watcher) { //special behavior for m.comic.naver.com
+            var saveNode = overlayLoader.vars.imageList.node;
+            overlayLoader.resource.watcherList = [];
+            while(overlayLoader.vars.imageList.node) {
+                overlayLoader.resource.watcherList.push({
+                    node: overlayLoader.vars.imageList.node,
+                    canvas: false
+                });
+                overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node.nextSibling, overlayLoader.vars.imageList.next);
+            }
+            overlayLoader.vars.imageList.node = saveNode;
+            overlayLoader.resource.watcher = window.setInterval(function() {overlayLoader.naverMobileWatcher();}, 1000);
+            overlayLoader.getNextImage = function() {
+                overlayLoader.resource.busy = false;
+                for(var i = 0; i < overlayLoader.resource.watcherList.length; i++) {
+                    var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src');
+                    if(lazySrc && !overlayLoader.resource.watcherList[i].canvas && lazySrc == overlayLoader.resource.watcherList[i].node.src) {
+                        overlayLoader.resource.watcherList[i].canvas = true;
+                        overlayLoader.vars.imageId = i;
+                        overlayLoader.vars.imageList.node = overlayLoader.resource.watcherList[i].node;
+                        overlayLoader.canvas();
+                        return true;
+                    }
+                }
+            };
         }
         overlayLoader.resource.rawImage.src = pathObject.node.src;
     },
     
+    naverMobileWatcher: function() {
+        for(var i = 0; i < overlayLoader.resource.watcherList.length; i++) {
+            var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src');
+            if(lazySrc && overlayLoader.resource.watcherList[i].canvas && lazySrc != overlayLoader.resource.watcherList[i].node.src) {
+                overlayLoader.resource.watcherList[i].canvas = false;
+                if(overlayLoader.resource.watcherList[i].node.nextSibling && overlayLoader.resource.watcherList[i].node.nextSibling.className == 'toonreader_overlay') {
+                    var saveNode = overlayLoader.resource.watcherList[i].node.nextSibling;
+                    saveNode.parentNode.removeChild(saveNode);
+                    delete saveNode;
+                }
+            }
+        }
+        if(!overlayLoader.resource.busy) {
+            overlayLoader.getNextImage();
+        }
+    },
+    
     getNextImage: function() {
+        overlayLoader.resource.busy = false;
         overlayLoader.vars.imageId++;
         overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node.nextSibling, overlayLoader.vars.imageList.next);
         if(overlayLoader.vars.imageList.node) {
