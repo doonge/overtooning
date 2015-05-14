@@ -2,7 +2,7 @@
 // @name           overtooning
 // @namespace      http://www.bumblebits.net
 // @author         doonge@oddsquad.org
-// @version        1.0.9
+// @version        1.0.10
 // @description    Load overlay from scanlation teams while browsing original webtoons.
 // @match          http://webtoon.daum.net/*
 // @match          http://cartoon.media.daum.net/*
@@ -16,7 +16,6 @@
 // ==/UserScript==
 
 //  $top
-var british = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MCAzMCIgd2lkdGg9IjEyMDAiIGhlaWdodD0iNjAwIj4NCjxjbGlwUGF0aCBpZD0idCI+DQoJPHBhdGggZD0iTTMwLDE1IGgzMCB2MTUgeiB2MTUgaC0zMCB6IGgtMzAgdi0xNSB6IHYtMTUgaDMwIHoiLz4NCjwvY2xpcFBhdGg+DQo8cGF0aCBkPSJNMCwwIHYzMCBoNjAgdi0zMCB6IiBmaWxsPSIjMDAyNDdkIi8+DQo8cGF0aCBkPSJNMCwwIEw2MCwzMCBNNjAsMCBMMCwzMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjYiLz4NCjxwYXRoIGQ9Ik0wLDAgTDYwLDMwIE02MCwwIEwwLDMwIiBjbGlwLXBhdGg9InVybCgjdCkiIHN0cm9rZT0iI2NmMTQyYiIgc3Ryb2tlLXdpZHRoPSI0Ii8+DQo8cGF0aCBkPSJNMzAsMCB2MzAgTTAsMTUgaDYwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMTAiLz4NCjxwYXRoIGQ9Ik0zMCwwIHYzMCBNMCwxNSBoNjAiIHN0cm9rZT0iI2NmMTQyYiIgc3Ryb2tlLXdpZHRoPSI2Ii8+DQo8L3N2Zz4=';
 
 var TEXT = {
     //Time
@@ -46,7 +45,7 @@ var TEXT = {
     sex: 'sex', age: 'age',
     _all: 'all', more: 'more', matches: 'matches', go: 'go', by: 'by', average: 'average',
     submit: 'submit',
-    recommended: 'recommended', MY: 'MY', recommendations: 'recommendations',
+    recommended: 'recommended', MY: 'MY', recommendations: 'recommendations', store: 'store',
     //naver specific
     popular: 'popular', brand: 'brand', pick: 'pick', remake: 'remake', multiPlot: 'multi-plot',
     _new: 'new', _this: 'this', _try: 'try',
@@ -133,7 +132,7 @@ var overlayLoader = {
             this.template = [
             {  route: '',
                 html: [
-                    {path: '#snb_wrap/h1/a.h_novel/+', tagName: 'div', style: 'display: inline-block; float: left; width: 30px; height: 15px; margin: 5px 10px 0 0; cursor: pointer;',
+                    {path: '#snb_wrap/h1/a.h_novel/+', tagName: 'div', style: 'display: inline-block; float: left; margin: -5px 10px 0 0; fill: #434343; color: #4fa52b; width: 35px; height: 35px; cursor: pointer;',
                         assign: 'menu'},
                     {path: '#menu/ul/li[]/a/em',
                         translate: [TEXT.index, TEXT.webtoon, TEXT.bestChallenge, TEXT.challenge, TEXT.recommended, TEXT.MY]}
@@ -551,31 +550,29 @@ var overlayLoader = {
             },
             {  route: '/(index|(webtoon|bestChallenge)/(list|genre|weekday))',
                 html: [
-                    {path: 'header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; border: #333 1px solid; z-index: 40;',
+                    {path: 'header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; z-index: 40; fill: white;',
                         assign: 'menu'},
-                    {path: 'div.ht/div/ul/li[]/a/span',
-                        translate: [TEXT.capitalize(TEXT.weekday), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
-                    {path: 'div.ht/div/ul/li/+/li/+/li/+/li/+/li/a',
-                        translate: TEXT.capitalize(TEXT.smartoon)},
+                    {path: 'div.lnb/ul/li[]/a',
+                        translate: [TEXT.capitalize(TEXT.index), TEXT.capitalize(TEXT.webtoons), TEXT.capitalize(TEXT.challenges), TEXT.capitalize(TEXT.store)]},
             ]},
             {  route: '/(webtoon|bestChallenge)/(genre|weekday)',
                 html: [
                     {path: '#form/ul.sort/li[]/input/+',
                         translate: [TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.rating), TEXT.adverbize(TEXT.by, TEXT.title)]},
                     {path: '#pageList/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/p/span/span', webtoonAuthor: 'div/a/div/p/span.sub_info'}},
-                    {path: '#ct/+/div.u_ft/div/div/a/span/+',
+                        assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/h4/span/span', webtoonAuthor: 'div/a/div/p'}},
+                    {path: '#ct/div.u_ft/div/div/a/span/+',
                         translate: TEXT.top.toUpperCase()}
             ]},
             {  route: '/(webtoon|bestChallenge)/list',
                 html: [
-                    {path: '#form/div/dl/dt/+/dd/+/dd/a@href?titleId',
+                    {path: '#form/div/div/dl/dt/+/dd/span/+/span/a@href?titleId',
                         assign: 'webtoonId'},
-                    {path: '#form/div/dl/dt/strong',
+                    {path: '#form/div/div/dl/dt/span/strong',
                         assign: 'webtoonTitle'},
-                    {path: '#form/div/dl/dt/+/dd',
+                    {path: '#form/div/div/dl/dt/+/dd/span/span',
                         assign: 'webtoonAuthor'},
-                    {path: '#form/div/dl/dt/+/dd/+/dd/a',
+                    {path: '#form/div/div/dl/dt/+/dd/span/+/span/a',
                         translate: TEXT.first.toUpperCase()},
                     {path: '#ct/+/div.u_ft/div/div/a/span/+',
                         translate: TEXT.top.toUpperCase()},
@@ -584,13 +581,13 @@ var overlayLoader = {
             ]},
             {  route: '/webtoon/detail',
                 html: [
-                    {path: '#fixedHeader/div.chn/dl/dd[]/a',
-                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.end]}
+                    {path: '#fixedHeader/div.lnb_sub/ul/li[]/a',
+                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.complete]}
             ]},
             {  route: '/webtoon/(list|weekday)',
                 html: [
-                    {path: 'div.chn/dl/dd[]/a',
-                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.end]}
+                    {path: 'div.lnb_sub/ul/li[]/a',
+                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.complete]}
             ]},
             {  route: '/bestChallenge/(list|genre|detail)',
                 html: [
@@ -604,13 +601,11 @@ var overlayLoader = {
             ]},
             {  route: '/(webtoon|bestChallenge)/detail',
                 html: [
-                    {path: '#fixedHeader/header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; border: #333 1px solid; z-index: 40;',
+                    {path: '#fixedHeader/header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; z-index: 40; fill: white;',
                         assign: 'menu'},
-                    {path: '#fixedHeader/div.ht/div/ul/li[]/a/span',
-                        translate: [TEXT.capitalize(TEXT.weekday), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.challenge), TEXT.MY]},
-                    {path: '#fixedHeader/div.ht/div/ul/li/+/li/+/li/+/li/+/li/a',
-                        translate: TEXT.capitalize(TEXT.smartoon)},
-                    {path: '#fixedHeader/div.chh/h1',
+                    {path: '#fixedHeader/div.lnb/ul/li[]/a',
+                        translate: [TEXT.capitalize(TEXT.index), TEXT.capitalize(TEXT.webtoons), TEXT.capitalize(TEXT.challenges), TEXT.capitalize(TEXT.store)]},
+                    {path: '#fixedHeader/div.chh/h1/span',
                         assign: 'chapterTitle'},
                     {path: '#fixedHeader/div.chh/div.pl/a/span',
                         translate: TEXT.list.toUpperCase()},
@@ -640,7 +635,7 @@ var overlayLoader = {
                         translate: TEXT.next.toUpperCase()},
                     {path: '#spiLayer1/+/div/p/~a',
                         translate: TEXT.list.toUpperCase()},
-                    {path: '#ct/+/div.u_ft/div/div/a/span/+',
+                    {path: '#ct/div.u_ft/div/div/a/span/+',
                         translate: TEXT.top.toUpperCase()},
                 ],
                 css: [
@@ -1627,20 +1622,25 @@ var overlayLoader = {
         // -- MENU
         if(this.vars.menu) {
             this.vars.menu.node.textContent = '';
-            this.vars.menu.node.appendChild(this.create('img', {
-                src: british, alt: 'logo', style: 'width: 100%; height: 100%; display: block;',
-                onclick: function(){
-                    //allow select and copy/paste (disallowed from naver).
-                    document.oncontextmenu = null;
-                    document.onselectstart = null;
-                    //end;
-                    var logs = overlayLoader.create('div', {});
-                    for(var i = 0; i < overlayLoader.log.length; i++) {
-                        logs.appendChild(overlayLoader.create('p', {textContent: overlayLoader.log[i], style: 'padding: 0 1em;'}));
-                    }
-                    overlayLoader.console(logs);
+            var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute('viewBox', '0 0 64 64');
+            svg.setAttribute('style', 'width: 100%; height: 100%; overflow: visible;');
+            svg.setAttribute('title', 'overTooning');
+            svg.onclick = function() {
+                //allow select and copy/paste (disallowed from naver).
+                document.oncontextmenu = null;
+                document.onselectstart = null;
+                //end;
+                var logs = overlayLoader.create('div', {});
+                for(var i = 0; i < overlayLoader.log.length; i++) {
+                    logs.appendChild(overlayLoader.create('p', {textContent: overlayLoader.log[i], style: 'padding: 0 1em;'}));
                 }
-            }));
+                overlayLoader.console(logs);
+            }
+            var path = document.createElementNS(svg.namespaceURI, 'path');
+            path.setAttribute('d', 'M32 4c18 0 32 12 32 26s-14 26-32 26c-2 0-3 0-5 0-7 7-15 8-23 8v-2c4-2 8-6 8-10 0-1 0-1 0-2-7-5-12-12-12-20 0-14 14-26 32-26zM48 25l-11-2-5-10-5 10-11 2 8 8-2 11 10-5 10 5-2-11 8-8z');
+            svg.appendChild(path);
+            this.vars.menu.node.appendChild(svg);
         }
         //-- localStorage and CORS request launch.
         //-- overloaderData {feedList, webtoonList}
