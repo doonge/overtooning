@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.13
+// @version         1.0.14
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -739,7 +739,7 @@ var overlayLoader = {
                         translate: 'Date: '},
                     {path: '#_comicTop/div._comico_view_area/p/img@src?path-2',
                         assign: 'chapterId'},
-                    {path: '#_comicTop/div._comico_view_area/p/img[]',
+                    {path: '#_comicTop/div._comico_view_area/p/img[]', innerPath: {style: 'margin: 0 auto;'},
                         assign: 'imageList'},
                 ],
                 css: [
@@ -1855,10 +1855,10 @@ var overlayLoader = {
         
         overlayLoader.resource.overlay.onload = function() {
             var overlayContainer = overlayLoader.create('div', {className: 'toonreader_overlay',
-                style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;' + (overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '') + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')}
+                style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;' + (overlayLoader.vars.imageList.innerPath && overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '') + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath && overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')}
             );
             overlayLoader.vars.imageList.node.parentNode.insertBefore(overlayContainer, overlayLoader.vars.imageList.node.nextSibling);
-            
+
             var start = 0, naturalCanvas;
             while(start != overlayLoader.resource.rawImage.naturalHeight) {
                 if(start > 0) {
@@ -1897,7 +1897,7 @@ var overlayLoader = {
             }
             
             overlayContainer.appendChild(overlayLoader.create('div', {style: 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;'})); //right-click added protection.
-            if(!overlayLoader.vars.imageList.innerPath.keepOriginal) {
+            if(!overlayLoader.vars.imageList.innerPath || !overlayLoader.vars.imageList.innerPath.keepOriginal) {
                 overlayLoader.vars.imageList.node = overlayLoader.vars.imageList.node.nextSibling;
                 overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.previousSibling);
             }
