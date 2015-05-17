@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.11
+// @version         1.0.12
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -674,7 +674,7 @@ var overlayLoader = {
                         translate: 'Author'},
                     {path: '#main/div.m-col-one01/div/div/div/section/~div/div/div/+/div/+/div',
                         assign: 'webtoonAuthor'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/p',
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/p', style: 'display: block; word-break: keep-all;',
                         assign: 'webtoonBlurb'},
                     {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/span',
                         translate: 'Favourite'},
@@ -2240,19 +2240,19 @@ var overlayLoader = {
                 overlayLoader.data.feedList[feedId].teamUrl = data.teamURL;
             }
             //--- MAYBE UPDATE - test against group precedence. $incomplete
-            if(data.title && !overlayLoader.scanlated && overlayLoader.vars.webtoonTitle) {
+            if(data.title && !overlayLoader.scanlated && overlayLoader.vars.webtoonTitle && overlayLoader.value(overlayLoader.vars.webtoonTitle) != data.title) {
                 overlayLoader.value(overlayLoader.vars.webtoonTitle, data.title);
                 if(overlayLoader.vars.internalWebtoonId !== false && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
                     overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wT = data.title;
                 }
             }
-            if(data.author && !overlayLoader.scanlated && overlayLoader.vars.webtoonAuthor) {
+            if(data.author && !overlayLoader.scanlated && overlayLoader.vars.webtoonAuthor && overlayLoader.value(overlayLoader.vars.webtoonAuthor) != data.author) {
                 overlayLoader.value(overlayLoader.vars.webtoonAuthor, data.author);
                 if(overlayLoader.vars.internalWebtoonId !== false && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
                     overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wA = data.author;
                 }
             }
-            if(data.description && !overlayLoader.scanlated && overlayLoader.vars.webtoonBlurb) {
+            if(data.description && !overlayLoader.scanlated && overlayLoader.vars.webtoonBlurb && overlayLoader.value(overlayLoader.vars.webtoonBlurb) != data.description.split('{endl}')[0]) { //only first line, buggy.
                 overlayLoader.value(overlayLoader.vars.webtoonBlurb, data.description);
                 if(overlayLoader.vars.internalWebtoonId !== false  && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
                     overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wB = data.description;
