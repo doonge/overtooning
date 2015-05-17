@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.12
+// @version         1.0.13
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -687,7 +687,7 @@ var overlayLoader = {
                     {path: '#main/div.m-col-one01/div/div/div/table/thead/tr/th[]',
                         translate: ['Title', 'Rating', 'Date']},
                     {path: '#main/div.m-col-one01/div/div/div/table/tbody/tr[]/td',
-                        assign: 'chapterList', innerPath: {chapterId: 'a/a@href?articleNo', chapterTitle: 'a/span'}},
+                        assign: 'chapterList', innerPath: {chapterId: 'a@href?articleNo', chapterTitle: 'a/span'}},
                     {path: '#_rankingTab/header/h1/a/strong',
                         translate: 'Official'},
                     {path: '#_rankingTab/header/h1/a/strong/+',
