@@ -1,18 +1,19 @@
 ﻿// ==UserScript==
-// @name           overtooning
-// @namespace      http://www.bumblebits.net
-// @author         doonge@oddsquad.org
-// @version        1.0.10
-// @description    Load overlay from scanlation teams while browsing original webtoons.
-// @match          http://webtoon.daum.net/*
-// @match          http://cartoon.media.daum.net/*
-// @match          http://comic.naver.com/*
-// @match          http://m.comic.naver.com/*
-// @match          http://comics.nate.com/*
-// @match          http://webtoon.olleh.com/*
-// @match          http://ttale.com/*
-// @match          http://www.lezhin.com/*
-// @grant          none
+// @name            overtooning
+// @namespace       http://www.bumblebits.net
+// @author          doonge@oddsquad.org
+// @version         1.0.11
+// @description     Load overlay from scanlation teams while browsing original webtoons.
+// @match           http://comic.naver.com/*
+// @match           http://m.comic.naver.com/*
+// @match           http://webtoon.daum.net/*
+// @match           http://cartoon.media.daum.net/*
+// @match           http://www.comico.jp/*
+// @match           http://comics.nate.com/*
+// @match           http://webtoon.olleh.com/*
+// @match           http://ttale.com/*
+// @match           http://www.lezhin.com/*
+// @grant           none
 // ==/UserScript==
 
 //  $top
@@ -643,6 +644,110 @@ var overlayLoader = {
                         style: 'overflow: hidden; position: relative;'},
                     {selector: 'img[style*="none"] + .toonreader_overlay', //memory release (?)
                         style: 'display: none;'}
+                ]
+            }
+            ];
+        // ------------------ WWW.COMICO.JP $comico
+        } else if(window.location.hostname == 'www.comico.jp') {
+            this.template = [
+            {  route: '$',
+                html: [
+                 ]
+            },
+            {  route: '/(articleList|detail)',
+                html: [
+                    {path: 'header/div/h1/+', tagName: 'div', style: 'float: left; margin: 5px 1em; width: 33px; height: 33px; cursor: pointer; fill: #ff4005;',
+                        assign: 'menu'},
+                ],
+                css: [
+                    {selector: '.m-btn-favorite01.o-replacement, .m-btn-story-one01.o-replacement, .m-btn-select02.o-replacement, .m-btn-summary.o-replacement',
+                        style: 'background-image: none; background: white; background: linear-gradient(to bottom, white, #f8f8f8); border-radius: 3px; font-weight: bold; font-size: 1em; line-height: 27px; font-family: inherit; color: #111; border: 1px solid #e5e5e5; text-align: center;'},
+                    {selector: '.m-btn-favorite01.o-replacement::before',
+                        style: 'content: \'★ \'; color: #ffa41d; text-shadow: 0 0 1px black;'},
+                ]
+            },
+            {  route: '/articleList',
+                html: [
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/h1',
+                        assign: 'webtoonTitle'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/div/div/+/div',
+                        translate: 'Author'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/div/div/+/div/+/div',
+                        assign: 'webtoonAuthor'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/p',
+                        assign: 'webtoonBlurb'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/span',
+                        translate: 'Favourite'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/+/li/a',
+                        translate: 'Start'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/+/li/a@href?titleNo',
+                        assign: 'webtoonId'},
+                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/+/li/+/li/a',
+                        translate: 'Artist\'s webtoons'},
+                    {path: '#main/div.m-col-one01/div/div/div/table/thead/tr/th[]',
+                        translate: ['Title', 'Rating', 'Date']},
+                    {path: '#main/div.m-col-one01/div/div/div/table/tbody/tr[]/td',
+                        assign: 'chapterList', innerPath: {chapterId: 'a/a@href?articleNo', chapterTitle: 'a/span'}},
+                    {path: '#_rankingTab/header/h1/a/strong',
+                        translate: 'Official'},
+                    {path: '#_rankingTab/header/h1/a/strong/+',
+                        translate: ' ranking'},
+                    {path: '#_rankingTab/div/select/option[]',
+                        translate: ['All ages', 'Teens', 'Twenties', 'Thirties']},
+                    {path: '#_rankingTab/ul/li[]/a',
+                        translate: ['♂', '♀']},
+                    {path: '#_rankingTab/div/+/div/div.viewport/div/ul[]/li[]/section',
+                        assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?titleNo', webtoonTitle: 'div/+/div/h1/a', webtoonAuthor: 'div/+/div/p/a'}},
+                    {path: '#_rankingTab/+/section/header/h1/a/strong',
+                        translate: 'Official'},
+                    {path: '#_rankingTab/+/section/header/h1/a/strong/+',
+                        translate: ' ranking'},
+                    {path: '#_rankingTab/+/section/div/div.viewport/div/ul/li[]/section',
+                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?titleNo', webtoonTitle: 'div/+/div/h1/a', webtoonAuthor: 'div/+/div/p/a'}},
+                    
+                ]
+            },
+            {  route: '/detail',
+                html: [
+                    {path: '#_comicTop/-3/div/~div/h1',
+                        assign: 'webtoonTitle'},
+                    {path: '#_comicTop/-3/div/~div/div/div/+/div',
+                        translate: 'Author'},
+                    {path: '#_comicTop/-3/div/~div/div/div/+/div/+/div',
+                        assign: 'webtoonAuthor'},
+                    {path: '#_comicTop/-3/div/~div/p',
+                        assign: 'webtoonBlurb'},
+                    {path: '#_comicTop/-3/div/~div/ul/li/span',
+                        translate: 'Favourite'},
+                    {path: '#_comicTop/-3/div/~div/ul/li/+/li/a',
+                        translate: 'First'},
+                    {path: '#_comicTop/-3/div/~div/ul/li/+/li/a@href?titleNo',
+                        assign: 'webtoonId'},
+                    {path: '#_comicTop/-3/div/~div/ul/~li/-2/li/a',
+                        translate: 'List'},
+                    {path: '#_comicTop/-3/div/~div/ul/~li/a',
+                        translate: 'Artist\'s webtoons'},
+                    {path: '#_comicTop/div/h1',
+                        assign: 'chapterTitle'},
+                    {path: '#_comicTop/div/ul/li/a.m-btn-prev-story01',
+                        translate: '‹ Previous'},
+                    {path: '#_comicTop/div/ul/~li/a.m-btn-next-story01',
+                        translate: 'Next ›'},
+                    {path: '#_comicTop/div/+/div/div/p/~span',
+                        translate: 'like'},
+                    {path: '#_comicTop/div/+/div/div/+/div/dl/dt',
+                        translate: 'Date: '},
+                    {path: '#_comicTop/div._comico_view_area/p/img@src?path-2',
+                        assign: 'chapterId'},
+                    {path: '#_comicTop/div._comico_view_area/p/img[]',
+                        assign: 'imageList'},
+                ],
+                css: [
+                    {selector: '.m-btn-prev-story01.o-replacement,  .m-btn-next-story01.o-replacement',
+                       style: 'background-image: none; background: white; background: linear-gradient(to bottom, white, #f8f8f8); border-radius: 3px; font-size: 1em; line-height: 27px; font-family: inherit; color: #111; border: 1px solid #e5e5e5; text-align: center;'},
+                    {selector: '.m-block05 .block05__area03',
+                       style: 'width: 120px; text-align: right;'},
+                       
                 ]
             }
             ];
@@ -1808,7 +1913,7 @@ var overlayLoader = {
     },
     
     console: function(element) {
-        var console = overlayLoader.create('div', {style: 'position: absolute; width: 80%; min-height: 80%; background: #DDD; top: 10%; left: 10%; z-index: 99999; text-align: left; border: 1px solid black; border-radius: 1em;'},
+        var console = overlayLoader.create('div', {style: 'position: absolute; width: 80%; min-height: 80%; background: #DDD; top: 4em; left: 10%; z-index: 99999; text-align: left; border: 1px solid black; border-radius: 1em;'},
             overlayLoader.create('div', {style: 'padding: 0.5em 1em;; position: relative; background: white; font-weight: bold; border-bottom: 1px solid black; margin-bottom: 1em; border-radius: 1em 1em 0 0;'},
                 overlayLoader.create('span', {style: 'font-size: 1.1em;', textContent: 'OverTooning CONSOLE'}),
                 //overlayLoader.create('span', {style: 'display: inline-block; padding: 0 1em;', textContent: 'Reset'}),
