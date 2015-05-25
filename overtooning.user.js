@@ -2,12 +2,13 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.14
+// @version         1.0.15
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
 // @match           http://webtoon.daum.net/*
 // @match           http://cartoon.media.daum.net/*
+// @match           http://comico.toast.com/*
 // @match           http://www.comico.jp/*
 // @match           http://comics.nate.com/*
 // @match           http://webtoon.olleh.com/*
@@ -657,7 +658,7 @@ var overlayLoader = {
             {  route: '/(articleList|detail)',
                 html: [
                     {path: 'header/div/h1/+', tagName: 'div', style: 'float: left; margin: 5px 1em; width: 33px; height: 33px; cursor: pointer; fill: #ff4005;',
-                        assign: 'menu'},
+                        assign: 'menu'}
                 ],
                 css: [
                     {selector: '.m-btn-favorite01.o-replacement, .m-btn-story-one01.o-replacement, .m-btn-select02.o-replacement, .m-btn-summary.o-replacement',
@@ -751,6 +752,66 @@ var overlayLoader = {
                 ]
             }
             ];
+        // ------------------ COMICO.TOAST.COM $toast
+        } else if(window.location.hostname == 'comico.toast.com') {
+            this.template = [
+            {  route: '$',
+                html: [
+                 ]
+            },
+            {  route: '/titles/[0-9]+/$',
+                html: [
+                    {path: '#header/div.navwrap/h1/+', tagName: 'div', style: 'position: absolute; left: 135px; top: 20px; width: 35px; height: 35px; cursor: pointer; fill: #ff4005;',
+                        assign: 'menu'},
+                    {path: '#header/div.navwrap/ul/li[]/a',
+                        translate: ['Schedule', 'Genre', 'Rank']},
+                    {path: '#container/div/div/div.con/h2',
+                        assign: 'webtoonTitle'},
+                    {path: '#container/div/div/div.con/dl/dd.name/span',
+                        assign: 'webtoonAuthor'},
+                    {path: '#container/div/div/div.con/dl/dd.dsc',
+                        assign: 'webtoonBlurb'},
+                    {path: '#container/div/div/div.con/div/a/span.aln',
+                        translate: 'FAV'},
+                    {path: '#container/div/div/div.con/div/a/+/a',
+                        translate: 'START'},
+                    {path: '#container/div/div/div.con/div/a/+/a@href?0',
+                        assign: 'webtoonId'},
+                    /*{path: '#container/div/div/+/div/div/p/',
+                        translate: 'Scheduled on '},
+                    {path: '#container/div/div/+/div/div/p/strong',
+                        translate: 'DAY'},
+                    {path: '#container/div/div/+/div/div/p/strong/+',
+                        translate: '.'},*/
+                    {path: '#container/div/div/+/div/ul/li[]', observe: '#container/div/div/+/div/ul',
+                        assign: 'chapterList', innerPath: {chapterId: 'a@href?-1', chapterTitle: 'a/span.tit'}},
+                ],
+                css: [
+                    {selector: '.tabnav',
+                        style: 'left: 175px;'}
+                ]
+            },
+            {  route: '/titles/[0-9]+/chapters/[0-9]+$',
+                html: [
+                    {path: '#wrap/div/div/h1/a/+/a/+', tagName: 'div', style: 'position: absolute; left: 145px; height: 35px; top: 10px; width: 35px; fill: #ff4005; cursor: pointer;',
+                        assign: 'menu'},
+                    {path: '#wrap/div/div/h1/a/+/a@href?0',
+                        assign: 'webtoonId'},
+                    {path: '#wrap/div/div/+/div/div.viewpage/p/input@value',
+                        assign: 'chapterId'},
+                    {path: '#wrap/div/div/h1/a/+/a', style: 'margin-left: 20px; max-width: 250px;',
+                        assign: 'webtoonTitle'},
+                    {path: '#wrap/div/div/div/button/span',
+                        assign: 'chapterTitle'},
+                    {path: '#container/div/div/div/div._remocon/a[]/span/+',
+                        translate: ['top', 'bottom']},
+                    {path: '#container/div/div/div/div._remocon/div/button/span',
+                        translate: 'autoscroll'},
+                       {path: '#container/div/div/div/div._view/img[]',
+                        assign: 'imageList'},
+                ]
+            }
+            ];
         // ----------------- DAUM $daum
         } else if(window.location.hostname == 'webtoon.daum.net' || window.location.hostname == 'cartoon.media.daum.net') {
             this.template = [
@@ -758,19 +819,19 @@ var overlayLoader = {
                 html: [
                     {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo',
                         translate: TEXT.capitalize(TEXT.home)},
-                    {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo/+', tagName: 'div', style: 'margin: 16px 0px 0px -16px; display: inline-block; background: #4c4c4c; width: 24px; height: 12px; cursor: pointer;',
+                    {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo/+', tagName: 'div', style: 'float:left; width: 1em; height: 1em; vertical-align: middle; margin: 8px 0 0 -16px; cursor: pointer; fill: white;',
                         assign: 'menu'},
                     {path: 'div.wrap/div.head_bar/div/div.episode_info/a',
                         assign: 'webtoonTitle'},
                     {path: 'div.wrap/div.head_bar/div/div.episode_info/a@href?path-1',
                         assign: 'webtoonId'},
-                    {path: 'div.wrap/div.head_bar/div/div.episode_info/span.writer',
+                    {path: 'div.wrap/div.head_bar/div/div.episode_info/a.writer',
                         assign: 'webtoonAuthor'},
                     {path: 'div.wrap/div.head_bar/div/div.others/span.move_control/span.txt',
                         translate: TEXT.capitalize(TEXT.navbar)},
                     {path: 'div.wrap/div.head_bar/div/div.others/span.move_control/span.episode_title',
                         assign: 'chapterTitle'},
-                    {path: '#scrollWrap/ul/li.on@id?0',
+                    {path: 'head/~meta@content?0',
                         assign: 'chapterId'},
                     {path: 'div.wrap/div.main_content/div/div/img[]',
                         assign: 'imageList', innerPath: {style: 'display: block; margin-left: auto; margin-right: auto;'}},
@@ -810,7 +871,7 @@ var overlayLoader = {
             },
             {  route: '/($|(webtoon|league)/($|week|view/|select))',
                 html: [
-                    {path: '#wrapMinidaum/+', tagName: 'div', style: 'display: inline-block; width: 38px; height: 19px; cursor: pointer; position: absolute; top: 7px; left: 55px; z-index: 999999;',
+                    {path: '#daumHead/h1/+', tagName: 'div', style: 'float:left; margin-left: 15px; width: 35px; height: 35px; vertical-align: middle; cursor: pointer; fill: red;',
                         assign: 'menu'},
                     {path: '#gnbCartoon/li[]/a/span.ir_wa/',
                         translate: ['Home', 'Webtoon', 'League', 'Market', 'Event', 'Forum', 'MY']},
@@ -2379,7 +2440,12 @@ var overlayLoader = {
             return false;
         } else if (typeof path == 'string') { //first iteration of that path.
             if(!node) {
-                node = document.body;
+                if(path.substr(0, 5) == 'head/') { //AH!
+                    node = document.head;
+                    path = path.substr(5);
+                } else {
+                    node = document.body;
+                }
             }
             path = {tag: path.substr(Math.max(0, path.indexOf('#'))).split('/'), current: 0};
             if(this.savePath.node[0] && this.savePath.node[0] === node) { //same source node
