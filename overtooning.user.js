@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.15
+// @version         1.0.16
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -759,7 +759,7 @@ var overlayLoader = {
                 html: [
                  ]
             },
-            {  route: '/titles/[0-9]+/$',
+            {  route: '/titles/[0-9]+/?$',
                 html: [
                     {path: '#header/div.navwrap/h1/+', tagName: 'div', style: 'position: absolute; left: 135px; top: 20px; width: 35px; height: 35px; cursor: pointer; fill: #ff4005;',
                         assign: 'menu'},
@@ -1671,8 +1671,115 @@ var overlayLoader = {
         } else if(window.location.hostname == 'ttale') {
             this.template = [];
         // ----------------- LENZHIN $lezhin
-        } else if(window.location.hostname == 'lezhin') {
-            this.template = [];
+        } else if(window.location.hostname == 'www.lezhin.com') {
+            this.template = [
+            {  route: '$',
+                html: [
+                ]
+            },
+            {  route: '/comic/[A-Za-z0-9_-]+/?$',
+                html: [
+                    {path: '#mainheader/div/div/div', className: 'overtooning', style: 'cursor: pointer;',
+                        assign: 'menu'},
+                    {path: '#nav-main/a[]',
+                        translate: ['Scheduled', 'Printed']},
+                    {path: '#auth-tabs/a[]',
+                        translate: ['Login', 'Sign Up']},
+                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login',
+                        translate: 'Login'},
+                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login/+/a[]',
+                        translate: ['Sign Up', 'FAQ']},
+                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-library',
+                        translate: 'Library'},
+                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-library/+/a[]',
+                        translate: ['Account', 'Wallet', 'Invite Friends', 'My List', 'FAQ', 'Log Out']},
+                    {path: '#main-login-fb',
+                        translate: 'Login with Facebook'},
+                    {path: '#main-login-fb/+/div/input@placeholder',
+                        translate: 'Email'},
+                    {path: '#main-login-fb/+/div/+/div/input@placeholder',
+                        translate: 'Password'},
+                    {path: '#main-login-fb/+/button',
+                        translate: 'Sign in with email'},
+                    {path: '#main-login-fb/+/button/+/div/label',
+                        translate: 'Remember me'},
+                    {path: '#main-login-fb/+/button/+/div/a',
+                        translate: 'Forgot password'},
+                    {path: '#main-signup-fb',
+                        translate: 'Signup with Facebook'},
+                    {path: '#main-signup-fb/+/div/input@placeholder',
+                        translate: 'Email'},
+                    {path: '#main-signup-fb/+/div/+/div/input@placeholder',
+                        translate: 'Password (min. 6 characters)'},
+                    {path: '#main-signup-fb/+/button',
+                        translate: 'Sign up with email'},
+                    {path: '#main-signup-fb/+/button/+/div/label/a[]',
+                        translate: ['Terms', 'Privacy policy']},
+                    {path: '#main-signup-fb/+/button/+/div/label/a[]/+',
+                        translate: [' and ', ' accepted']},
+                ],
+                css: [
+                    {selector: '.overtooning',
+                        style: 'float: left; width: 60px; height: 60px; padding: 10px 0 10px 20px; fill: #E50020;'},
+                    {selector: '@media (max-width: 1023px) and (orientation: landscape) { .overtooning',
+                        style: 'float: none; display: inline-block; vertical-align: middle; width: 50px; height: 50px; padding: 12px; fill: white;}'},
+                    {selector: '@media (max-width: 768px) { .overtooning',
+                        style: 'float: none; display: inline-block; vertical-align: middle; width: 50px; height: 50px; padding: 12px; fill: white;}'},
+                ]
+            },
+            {  route: '/comic/[A-Za-z0-9_-]+/?$',
+                html: [
+                    {path: '#artist-info/h1',
+                        assign: 'webtoonTitle'},
+                    {path: '#artist-info/p/a',
+                        assign: 'webtoonAuthor'},
+                    {path: '#detail/h1',
+                        translate: 'Info'},
+                    /*{path: '#comic-info-genre/h1',
+                        translate: 'webtoonGenre'},*/
+                    {path: '#comic-info-genre/p',
+                        assign: 'webtoonBlurb'},
+                    /*{path: '#comic-info-genre/+/section',
+                        translate: 'Editor\'s note'},
+                    {path: '#comic-info-genre/+/section/p',
+                        translate: 'webtoonEditorNote'},*/
+                    {path: '#cover-info/div/img@src?path-3',
+                        assign: 'webtoonId'},
+                    {path: '#comic-episode-list/li[]',
+                        assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?-1', chapterTitle: 'div.episode-title'}}
+                ],
+                css: [
+                ]
+            },
+            {  route: '/comic/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+',
+                html: [
+                    {path: '@data-episode-id?path0',
+                        assign: 'webtoonId'},
+                    {path: '@data-episode-id?path1',
+                        assign: 'chapterId'},
+                    {path: '#list/span',
+                        assign: 'chapterTitle'},
+                    {path: '#list/span/+/span',
+                        assign: 'webtoonTitle'},
+                    {path: '#viewer-nav/~li', className: 'overtooning', style: 'vertical-align: middle; background: white; box-sizing: border-box; padding: 10px; fill: #E50020; cursor: pointer; border-left: 1px solid lightgrey;',
+                        assign: 'menu'},
+                    {path: '#scroll-list/div[]/img', observe: '#scroll-list',
+                        assign: 'imageList', innerPath: {style: 'margin-left: auto; margin-right: auto;'}},
+                    {path: '#episode-nav-section/ul/li[]/button',
+                        translate: ['Previous', 'Next']},
+                ],
+                css: [
+                    {selector: '#list',
+                        style: 'margin-left: 40px;'},
+                    {selector: '.overtooning',
+                        style: 'height: 60px; width: 60px;'},
+                    {selector: '@media (max-width: 1023px) and (orientation: landscape) { .overtooning',
+                        style: 'height: 48px; width: 48px; border-right: 1px solid lightgrey;}'},
+                    {selector: '@media (max-width: 768px) { .overtooning',
+                        style: 'height: 48px; width: 48px; border-right: 1px solid lightgrey;}'},
+                ]
+            }
+            ];
         }
     },
     
@@ -2198,6 +2305,8 @@ var overlayLoader = {
         }
         if(!pathObject) {
             pathObject = overlayLoader.vars.imageList;
+        } else if (!overlayLoader.vars.imageList) {
+            overlayLoader.vars.imageList = pathObject;
         }
         if(!pathObject.node) {
             return false;
@@ -2474,19 +2583,19 @@ var overlayLoader = {
                 return false;
             }
         } else {
-            if(path.current == 0 || !/^(\+|-|\.\.)[0-9]*$/.test(path.tag[path.current - 1])) {
-                node = path.tag[path.current].match(/^~/) ? node.lastChild : node.firstChild;
-            }
             var compare = {
                 id: path.tag[path.current].match(/#[a-zA-Z0-9_\-]+/),
                 nodeName: path.tag[path.current].match(/^~?([a-zA-Z0-9]+)/),
                 movingProperty: path.tag[path.current].match(/^~/) ? 'previousSibling' : 'nextSibling',
                 className: path.tag[path.current].match(/\.[a-zA-Z0-9 _\-]+/),
-                attribute: path.tag[path.current].match(/@([a-z]+)(\?[a-zA-Z0-9_\-]+)?/)
+                attribute: path.tag[path.current].match(/@([a-z-]+)(\?[a-zA-Z0-9_\-]+)?/)
             };
             if(compare.id) {
                 node = document.getElementById(compare.id[0].substr(1));
             } else if(compare.nodeName) {
+                if(path.current == 0 || !/^(\+|-|\.\.)[0-9]*$/.test(path.tag[path.current - 1])) {
+                    node = path.tag[path.current].match(/^~/) ? node.lastChild : node.firstChild;
+                }
                 compare.nodeName = compare.nodeName[1].toLowerCase();
                 if(compare.className) {
                     compare.className = compare.className[0].substr(1);
@@ -2499,8 +2608,8 @@ var overlayLoader = {
                     }
                 }
             } else if(compare.attribute) {
-                //-- missing
-                overlayLoader.addLog('[overlayLoader.fetch] Attribute alone. Should be patched');;
+                //-- nothing to do?
+                //overlayLoader.addLog('[overlayLoader.fetch] Attribute alone.');
             }else {
                 overlayLoader.addLog('[overlayLoader.fetch] insufficient identifier for ' + path.tag.join('/') + ' (' + path.current + ': ' + path.tag[path.current] + ')');
                 return false;
@@ -2510,7 +2619,7 @@ var overlayLoader = {
                 if(node && compare.attribute[2]) { //treatment required.
                     node = node.value;
                     compare.attribute[2] = compare.attribute[2].substr(1);
-                    if(compare.attribute[2].match(/^path?[0-9-]+$/)) { //"path" is a keyword, unfortunately (attribute named "path" won't work). $incomplete
+                    if(compare.attribute[2].match(/^path[0-9-]+$/)) { //"path" is a keyword, unfortunately (attribute named "path" won't work). $incomplete
                         node = node.split('/');
                         node = node[parseInt(compare.attribute[2].substr(4), 10) >= 0 ? parseInt(compare.attribute[2].substr(4), 10) : node.length +  parseInt(compare.attribute[2].substr(4), 10)];
                     } else if(compare.attribute[2].match(/^-?[0-9]+$/)) { //parse numbers and take one.
