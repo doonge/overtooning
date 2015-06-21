@@ -1682,7 +1682,7 @@ var overlayLoader = {
                     {path: '#mainheader/div/div/div', className: 'overtooning', style: 'cursor: pointer;',
                         assign: 'menu'},
                     {path: '#nav-main/a[]',
-                        translate: ['Scheduled', 'Printed']},
+                        translate: ['Scheduled', 'Publications', 'Top 100', 'Mature']},
                     {path: '#auth-tabs/a[]',
                         translate: ['Login', 'Sign Up']},
                     {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login',
@@ -2361,7 +2361,7 @@ var overlayLoader = {
     getNextImage: function() {
         overlayLoader.resource.busy = false;
         overlayLoader.vars.imageId++;
-        overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node.nextSibling, overlayLoader.vars.imageList.next);
+        overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node, overlayLoader.vars.imageList.next);
         if(overlayLoader.vars.imageList.node) {
                 overlayLoader.canvas();
         } else {
