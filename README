@@ -3,10 +3,17 @@ overtooning.user.js
 Is an userscript that load overlay from scanlation teams while browsing original webtoons.
 Currently supported websites are:
 (korean)
-webtoon.daum.net, cartoon.media.daum.net, comic.naver.com, m.comic.naver.com, comics.nate.com, webtoon.olleh.com, www.comico.jp
+webtoon.daum.net (and the alias cartoon.media.daum.net)
+comic.naver.com (and the mobile version m.comic.naver.com)
+www.comico.jp
+www.lezhin.com
+comics.nate.com
+webtoon.olleh.com
+(japanese)
+comico.toast.com
 
 (soon)
-ttale.com (korean), www.lezhin.com (korean)
+ttale.com (korean)
 
 Scanlation teams working with this script:
 http://www.oddsquad.org

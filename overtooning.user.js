@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.17
+// @version         1.0.18
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -1746,7 +1746,7 @@ var overlayLoader = {
                     {path: '#cover-info/div/img@src?path-3',
                         assign: 'webtoonId'},
                     {path: '#comic-episode-list/li[]',
-                        assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?-1', chapterTitle: 'div.episode-title'}}
+                        assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?path-1', chapterTitle: 'div.episode-title'}}
                 ],
                 css: [
                 ]
@@ -1761,7 +1761,7 @@ var overlayLoader = {
                         assign: 'chapterTitle'},
                     {path: '#list/span/+/span',
                         assign: 'webtoonTitle'},
-                    {path: '#viewer-nav/~li', className: 'overtooning', style: 'vertical-align: middle; background: white; box-sizing: border-box; padding: 10px; fill: #E50020; cursor: pointer; border-left: 1px solid lightgrey;',
+                    {path: '#viewer-nav/~li', className: 'overtooning', style: 'vertical-align: top; background: white; box-sizing: border-box; padding: 10px; fill: #E50020; cursor: pointer; border-left: 1px solid lightgrey;',
                         assign: 'menu'},
                     {path: '#scroll-list/div[]/img', observe: '#scroll-list',
                         assign: 'imageList', innerPath: {style: 'margin-left: auto; margin-right: auto;'}},
@@ -1769,8 +1769,6 @@ var overlayLoader = {
                         translate: ['Previous', 'Next']},
                 ],
                 css: [
-                    {selector: '#list',
-                        style: 'margin-left: 40px;'},
                     {selector: '.overtooning',
                         style: 'height: 60px; width: 60px;'},
                     {selector: '@media (max-width: 1023px) and (orientation: landscape) { .overtooning',
