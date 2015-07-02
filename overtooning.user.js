@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.18
+// @version         1.0.19
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -2298,15 +2298,17 @@ var overlayLoader = {
     
     // ----------------- OVERLAYLOADER.CANVAS $canvas
     canvas: function(pathObject) {
-        if(!overlayLoader.resource.generalUrl) {
-            return false;
-        }
         if(!pathObject) {
             pathObject = overlayLoader.vars.imageList;
         } else if (!overlayLoader.vars.imageList) {
             overlayLoader.vars.imageList = pathObject;
         }
-        if(!pathObject.node) {
+        if(!overlayLoader.resource.generalUrl) {
+            overlayLoader.addLog('[overLoader.canvas] Cancelled (no URL).');
+            return false;
+        }
+        if(!pathObject || !pathObject.node) {
+            overlayLoader.addLog('[overLoader.canvas] Cancelled (no registered node).');
             return false;
         }
         overlayLoader.vars.imageList.node = pathObject.node;
