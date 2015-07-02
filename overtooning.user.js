@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.19
+// @version         1.0.20
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -1775,6 +1775,10 @@ var overlayLoader = {
                         style: 'height: 48px; width: 48px; border-right: 1px solid lightgrey;}'},
                     {selector: '@media (max-width: 768px) { .overtooning',
                         style: 'height: 48px; width: 48px; border-right: 1px solid lightgrey;}'},
+                    {selector: '#scroll-list [data-page-position="curr"]',
+                        style: 'width: 100%; text-align: center;'},
+                    {selector: '#scroll-list .cut img',
+                        style: 'max-width: 100%; width: auto;'},
                 ]
             }
             ];
