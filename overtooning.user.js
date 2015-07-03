@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.20
+// @version         1.0.21
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -14,6 +14,7 @@
 // @match           http://webtoon.olleh.com/*
 // @match           http://ttale.com/*
 // @match           http://www.lezhin.com/*
+// @match           https://ex-ac.lezhin.com/*
 // @grant           none
 // ==/UserScript==
 
@@ -1671,13 +1672,96 @@ var overlayLoader = {
         } else if(window.location.hostname == 'ttale') {
             this.template = [];
         // ----------------- LENZHIN $lezhin
+        } else if (window.location.hostname == 'ex-ac.lezhin.com') {
+            this.template = [
+            {  route: '/overseaAdultCertificate.php',
+                html: [
+                    {path: 'div/div.jumbotron/h3',
+                        translate: 'Adult certification for overseas users'},
+                    {path: '#formAdultCertificate/div/label',
+                        translate: 'Name'},
+                    {path: '#inputUserName@placeholder',
+                        translate: 'Please write your name.'},
+                    {path: '#datepicker/label',
+                        translate: 'Date of birth'},
+                    {path: '#datepicker/+/div/label',
+                        translate: 'Sex'},
+                    {path: '#datepicker/+/div/div/div[]/label/input/+',
+                        translate: ['Man', 'Woman']},
+                    {path: '#btnSubmit',
+                        translate: 'Submit'},
+                    {path: '#btnClose',
+                        translate: 'Close'},
+                ]
+            }
+            ];
         } else if(window.location.hostname == 'www.lezhin.com') {
             this.template = [
-            {  route: '$',
+            {  route: '/?$',
                 html: [
                 ]
             },
-            {  route: '/comic/[A-Za-z0-9_-]+/?$',
+            {  route: '/login',
+                html: [
+                    {path: '#main/div/h1',
+                        translate: 'Log in Lezhin'},
+                    {path: '#login-fb/span',
+                        translate: 'Login with Facebook'},
+                    {path: '#email@placeholder',
+                        translate: 'email'},
+                    {path: '#password@placeholder',
+                        translate: 'password'},
+                    {path: '#password/../+/p/label/span',
+                        translate: 'Remember me'},
+                    {path: '#password/../+/p/+/p/button',
+                        translate: 'Log in'},
+                    {path: '#signup/span',
+                        translate: 'Sign Up'},
+                    {path: '#forgot-password/span',
+                        translate: 'Forgot password'},
+                ]
+            },
+            {  route: '/signup',
+                html: [
+                    {path: '#main/div/h1',
+                        translate: 'Sign up Lezhin'},
+                    {path: '#auth-fb/p',
+                        translate: 'Simply sign up with Facebook'},
+                    {path: '#signup-fb/span',
+                        translate: 'Sign up with Facebook'},
+                    {path: '#auth-email/p',
+                        translate: 'Sign up in only 3 seconds with your email!'},
+                    {path: '#email@placeholder',
+                        translate: 'your active email'},
+                    {path: '#password@placeholder',
+                        translate: 'password (6 chars or more)'},
+                    {path: '#agreement/+/a[]',
+                        translate: ['Terms', 'Privacy policy']},
+                    {path: '#agreement/+/a[]/+',
+                        translate: [' and ', ' accepted']},
+                    {path: '#password/../+/p/+/p/button',
+                        translate: 'Sign Up'},
+                    {path: '#password/../+/p/+/p/+/p/a',
+                        translate: 'log in'},
+                    {path: '#password/../+/p/+/p/+/p/a/-',
+                        translate: 'Just '},
+                    {path: '#password/../+/p/+/p/+/p/a/+',
+                        translate: ' if you are already registered!'},
+                ]
+            },
+            {  route: '/adult',
+                html: [
+                    {path: '#main/div/p',
+                        translate: 'Access adult content (must be 18 years old).'},
+                    {path: '#auth-method-form/p',
+                        translate: 'Please select your authentication method.'},
+                    {path: '#auth-method-form/ul/li[]/label/input/+',
+                        translate: ['I-PIN authentication', 'Assured certification (mobile phone)', 'International User Authentication']},
+                    {path: '#auth-method-form/+/form[]/p/button',
+                        translate: ['Confirm', 'Confirm', 'Confirm']},
+                ]
+            },
+            {  route: '(/?$|/comic/[A-Za-z0-9_-]+/?$|/login|/signup)',
                 html: [
                     {path: '#mainheader/div/div/div', className: 'overtooning', style: 'cursor: pointer;',
                         assign: 'menu'},
@@ -1685,6 +1769,10 @@ var overlayLoader = {
                         translate: ['Scheduled', 'Publications', 'Top 100', 'Mature']},
                     {path: '#auth-tabs/a[]',
                         translate: ['Login', 'Sign Up']},
+                    {path: '#sidenav-exit/div/div.sidenav-coinwrap/div/br/-',
+                        translate: 'Web/Android'},
+                    {path: '#sidenav-exit/div/div.sidenav-coinwrap/div/+/div/span[]/+',
+                        translate: [' coins', ' coins']},
                     {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login',
                         translate: 'Login'},
                     {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login/+/a[]',
@@ -1706,7 +1794,7 @@ var overlayLoader = {
                     {path: '#main-login-fb/+/button/+/div/a',
                         translate: 'Forgot password'},
                     {path: '#main-signup-fb',
-                        translate: 'Signup with Facebook'},
+                        translate: 'Sign up with Facebook'},
                     {path: '#main-signup-fb/+/div/input@placeholder',
                         translate: 'Email'},
                     {path: '#main-signup-fb/+/div/+/div/input@placeholder',
