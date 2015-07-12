@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.21
+// @version         1.0.22
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -1831,7 +1831,7 @@ var overlayLoader = {
                         translate: 'Editor\'s note'},
                     {path: '#comic-info-genre/+/section/p',
                         translate: 'webtoonEditorNote'},*/
-                    {path: '#cover-info/div/img@src?path-3',
+                    {path: '#comic-library@href?path-1',
                         assign: 'webtoonId'},
                     {path: '#comic-episode-list/li[]',
                         assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?path-1', chapterTitle: 'div.episode-title'}}
@@ -1841,9 +1841,9 @@ var overlayLoader = {
             },
             {  route: '/comic/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+',
                 html: [
-                    {path: '@data-episode-id?path0',
+                    {path: '#list@href?path-1',
                         assign: 'webtoonId'},
-                    {path: '@data-episode-id?path1',
+                    {path: '@data-episode-id',
                         assign: 'chapterId'},
                     {path: '#list/span',
                         assign: 'chapterTitle'},
@@ -2116,6 +2116,9 @@ var overlayLoader = {
                 style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;' + (overlayLoader.vars.imageList.innerPath && overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '') + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath && overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')}
             );
             overlayLoader.vars.imageList.node.parentNode.insertBefore(overlayContainer, overlayLoader.vars.imageList.node.nextSibling);
+            // Memory release (?).
+            //overlayLoader.vars.imageList.node.setAttribute('data-legacy-src', overlayLoader.vars.imageList.node.src);
+            //overlayLoader.vars.imageList.node.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>';
 
             var start = 0, naturalCanvas;
             while(start != overlayLoader.resource.rawImage.naturalHeight) {
@@ -2419,7 +2422,7 @@ var overlayLoader = {
             overlayLoader.getNextImage = function() {
                 overlayLoader.resource.busy = false;
                 for(var i = 0; i < overlayLoader.resource.watcherList.length; i++) {
-                    var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src');
+                    var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-legacy-src') ||overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src');
                     if(lazySrc && !overlayLoader.resource.watcherList[i].canvas && lazySrc == overlayLoader.resource.watcherList[i].node.src) {
                         overlayLoader.resource.watcherList[i].canvas = true;
                         overlayLoader.vars.imageId = i;
