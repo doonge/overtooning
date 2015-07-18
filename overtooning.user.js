@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.22
+// @version         1.0.23
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -10,6 +10,7 @@
 // @match           http://cartoon.media.daum.net/*
 // @match           http://comico.toast.com/*
 // @match           http://www.comico.jp/*
+// @match           http://www.foxtoon.com/*
 // @match           http://comics.nate.com/*
 // @match           http://webtoon.olleh.com/*
 // @match           http://ttale.com/*
@@ -1671,6 +1672,86 @@ var overlayLoader = {
         // ----------------- TTALE $ttale
         } else if(window.location.hostname == 'ttale') {
             this.template = [];
+        // ----------------- FOXTOON $foxtoon
+        } else if (window.location.hostname == 'www.foxtoon.com') {
+            this.template = [
+            {  route: '(/?|/comic/[A-Za-z0-9_\-]+)$',
+                html: [
+                    {path: '#header/div/div.menu/ul/li/+', tagName: 'li', style: 'width: 4em; height: 4em; fill: #F49800; margin: 2em 0.5em 0;',
+                        assign: 'menu'},
+                    {path: '#header/div/div.menu/ul/li/a/div',
+                        translate: 'Challenges'},
+                ],
+                css: [
+                    {selector: '#header .menu li.menu_comic_challenge',
+                        style: 'background: inherit; line-height: 124px; font-size: 1.5em; text-shadow: 0 0 1px; text-align: center;'},
+                    {selector: '#header .menu li.menu_comic_challenge:hover, #header .menu li.menu_comic_challenge.on',
+                        style: 'background: #f8b551;'},
+                    {selector: '.menu_comic_challenge a',
+                        style: 'color: #eb6100;'},
+                    {selector: '.menu_comic_challenge a:hover, .menu_comic_challenge.on a',
+                        style: 'color: white;'},
+                    {selector: '#header .menu li',
+                        style: 'text-indent: 0px;'},
+                ]
+            },
+            {  route: '/?$',
+                html: [
+                    {path: '#contents/div/div/ul/li.t2x2[]',
+                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div/span/', webtoonAuthor: 'a/div/span/em'}},
+                    {path: '#contents/div/div/ul/li.t2x1[]',
+                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div/span/', webtoonAuthor: 'a/div/span/em'}},
+                    {path: '#contents/div/div/ul/li.t1x1[]',
+                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div/span/', webtoonAuthor: 'a/div/span/em'}},
+                    {path: '#comic_schedule_table/div/ul/li[]/a',
+                        translate: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']},
+                    {path: '#comic_schedule_table/div/ul/+/ul[]/li[]',
+                        assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div.des/div.title', webtoonAuthor: 'a/div.des/div.author'}},
+                ]
+            },
+            {  route: '/comic/[A-Za-z0-9_\-]+$',
+                html: [
+                    {path: '#contents/div/div/div/div.des/h3/',
+                        assign: 'webtoonTitle'},
+                    {path: '#contents/div/div/div/div.des/h3/em',
+                        assign: 'webtoonAuthor'},
+                    {path: '#contents/div/div/div/div.des/p',
+                        assign: 'webtoonBlurb'},
+                    {path: '#contents/div/div/div/div.des/div.function/a@href?path-2',
+                        assign: 'webtoonId'},
+                    {path: '#contents/div/div/div/div.des/div.function/a/input@value',
+                        translate: 'FIRST'},
+                    {path: '#contents/div/div/~div/ul/li[]',
+                        assign: 'chapterList', innerPath: {chapterId: 'a@href?path-1', chapterTitle: 'a/div.title'}},
+                ]
+            },
+            {  route: '/comic/[A-Za-z0-9_\-]+/[0-9]+',
+                html: [
+                    {path: '#nav_wrap/div/h1/+', tagName: 'div', style: 'cursor: pointer; width: 40px; height: 40px; float: left; fill: #F49800; margin: 10px 0.5em 0;',
+                        assign: 'menu'},
+                    {path: '#nav_wrap/div/div.title/a/h2', style: 'display: inline;',
+                        assign: 'webtoonTitle'},
+                    {path: '#nav_wrap/div/div.title/a/h2/+', tagName: 'span', style: 'line-height: 60px; font-size: 16px; margin-left: 5px;',
+                        assign: 'chapterTitle'},
+                    {path: '#comic_view_area/div.navigation/div.nav_wrapper/ul/li.on/a@href?path-2',
+                        assign: 'webtoonId'},
+                    {path: '#comic_view_area/div.navigation/div.nav_wrapper/ul/li.on/a@href?path-1',
+                        assign: 'chapterId'},
+                    {path: '#nav_bottom/div/div/a.prev/span/+',
+                        translate: 'Previous'},
+                    {path: '#nav_bottom/div/div/a.next/span/-',
+                        translate: 'Next'},
+                    {path: '#comic_view_area/div.navigation/div.nav_wrapper/ul/li[]',
+                        assign: 'chapterList', innerPath: {chapterId: 'a@href?path-1', chapterTitle: 'a/p'}},
+                    {path: '#comic_view_area/div.comic_view/img[]',
+                        assign: 'imageList', innerPath: {style: 'margin: 0px auto;'}},
+                ],
+                css: [
+                    {selector: '.nav .title',
+                        style: 'width: 800px; left: 131px;'},
+                ]
+            }
+            ];
         // ----------------- LENZHIN $lezhin
         } else if (window.location.hostname == 'ex-ac.lezhin.com') {
             this.template = [
