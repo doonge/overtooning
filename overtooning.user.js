@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.23
+// @version         1.0.24
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -168,14 +168,8 @@ var overlayLoader = {
             },
             {  route: '/webtoon/(detail|list|weekday|weekdayList)',
                 html: [
-                    {path: '#content/div/+/ul.category_tab/li[]/a', style: 'text-transform: capitalize;', //Fix for Firefox "new session" bug (two category_tab instead of one??).
+                    {path: '#content/ul.category_tab/li[]/a', style: 'text-transform: capitalize;', //Fix for Firefox "new session" bug (two category_tab instead of one??).
                         translate: [TEXT.week, TEXT.monday, TEXT.tuesday, TEXT.wednesday, TEXT.thursday, TEXT.friday, TEXT.saturday, TEXT.sunday]}
-            ],
-            css: [
-                {selector: '.category_tab',
-                        style: 'display: none;'},
-                {selector: 'div + .category_tab',
-                    style: 'display: block;'},
             ]},
             {  route: '/webtoon/(genre|period|finish)',
                 html: [
@@ -1847,13 +1841,13 @@ var overlayLoader = {
                     {path: '#mainheader/div/div/div', className: 'overtooning', style: 'cursor: pointer;',
                         assign: 'menu'},
                     {path: '#nav-main/a[]',
-                        translate: ['Scheduled', 'Publications', 'Top 100', 'Mature']},
+                        translate: ['Scheduled', 'Publications', 'Top 100', 'Mature', 'Novel']},
                     {path: '#auth-tabs/a[]',
                         translate: ['Login', 'Sign Up']},
-                    {path: '#sidenav-exit/div/div.sidenav-coinwrap/div/br/-',
+                    /*{path: '#sidenav-exit/div/div.sidenav-coinwrap/div/br/-',
                         translate: 'Web/Android'},
                     {path: '#sidenav-exit/div/div.sidenav-coinwrap/div/+/div/span[]/+',
-                        translate: [' coins', ' coins']},
+                        translate: [' coins', ' coins']},*/
                     {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login',
                         translate: 'Login'},
                     {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login/+/a[]',
@@ -1886,6 +1880,8 @@ var overlayLoader = {
                         translate: ['Terms', 'Privacy policy']},
                     {path: '#main-signup-fb/+/button/+/div/label/a[]/+',
                         translate: [' and ', ' accepted']},
+                    {path: '#search-main@placeholder',
+                        translate: 'Search'},
                 ],
                 css: [
                     {selector: '.overtooning',
@@ -1898,24 +1894,34 @@ var overlayLoader = {
             },
             {  route: '/comic/[A-Za-z0-9_-]+/?$',
                 html: [
-                    {path: '#artist-info/h1',
+                    {path: '#cover-info/div/div.info/h2',
                         assign: 'webtoonTitle'},
-                    {path: '#artist-info/p/a',
+                    {path: '#cover-info/div/div.info/p/a',
                         assign: 'webtoonAuthor'},
-                    {path: '#detail/h1',
+                    {path: '#cover-info/div/div.info/div.genre/span.genre-link[]',
+                        translate: ['성인', '백합'], by: ['Mature', 'Yuri']},
+                    {path: '#product-synopsis/h2',
                         translate: 'Info'},
-                    /*{path: '#comic-info-genre/h1',
-                        translate: 'webtoonGenre'},*/
-                    {path: '#comic-info-genre/p',
+                    {path: '#product-synopsis/p',
                         assign: 'webtoonBlurb'},
-                    /*{path: '#comic-info-genre/+/section',
-                        translate: 'Editor\'s note'},
-                    {path: '#comic-info-genre/+/section/p',
-                        translate: 'webtoonEditorNote'},*/
-                    {path: '#comic-library@href?path-1',
+                    {path: '#product-comment/h2',
+                        translate: 'Editor\'s comment'},
+                    {path: '#product-comment/p',
+                        assign: 'webtoonComment'},
+                    {path: '#cover-info/div/div.info/div.info-btns/a.btn-library@href?path-1',
                         assign: 'webtoonId'},
-                    {path: '#comic-episode-list/li[]',
-                        assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?path-1', chapterTitle: 'div.episode-title'}}
+                    {path: '#cover-info/div/div.info/div.info-btns/a.btn-continue',
+                        translate: 'Continue'},
+                    {path: '#btn-sort-desc',
+                        translate: 'Desc'},
+                    {path: '#btn-sort-asc',
+                        translate: 'Asc'},
+                    {path: '#schedule',
+                        translate: ['매주', '목요일', '연재'], by: ['', 'Thursdays', 'serie']},
+                    {path: '#comic-episode-list/li[]/div.episode-price/span', observe: '#comic-episode-list',
+                        translate: ['무료', '코인'], by: ['Free', 'coins']},
+                    {path: '#comic-episode-list/li[]', observe: '#comic-episode-list',
+                        assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?0', chapterTitle: 'div.episode-seq/div.episode-title'}}
                 ],
                 css: [
                 ]
@@ -2321,6 +2327,22 @@ var overlayLoader = {
         if(!pathObject.translate.join) {
             pathObject.translate = [pathObject.translate];
         }
+        
+        if(pathObject.by) {
+            var translate = pathObject.translate, by = pathObject.by;
+            pathObject.translate = null;
+            while(pathObject.node) {
+                this.runPath(pathObject);
+                for(var i = 0; i < translate.length; i++) {
+                    this.value(pathObject.node,
+                        this.value(pathObject.node).replace(translate[i], by[i])
+                    );
+                }
+                pathObject.node = this.getNextNode(pathObject.node, pathObject.next);
+            }
+            return true;
+        }
+        
         var cloneTranslate = pathObject.translate.slice(0);
         var clonePathObject = {
             node: pathObject.node,
@@ -2496,14 +2518,14 @@ var overlayLoader = {
                     node: overlayLoader.vars.imageList.node,
                     canvas: false
                 });
-                overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node.nextSibling, overlayLoader.vars.imageList.next);
+                overlayLoader.vars.imageList.node = overlayLoader.getNextNode(/*overlayLoader.vars.imageList.node.nextSibling*/overlayLoader.vars.imageList.node, overlayLoader.vars.imageList.next);
             }
             overlayLoader.vars.imageList.node = saveNode;
             overlayLoader.resource.watcher = window.setInterval(function() {overlayLoader.naverMobileWatcher();}, 1000);
             overlayLoader.getNextImage = function() {
                 overlayLoader.resource.busy = false;
                 for(var i = 0; i < overlayLoader.resource.watcherList.length; i++) {
-                    var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-legacy-src') ||overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src');
+                    var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-legacy-src') || overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src') || overlayLoader.resource.watcherList[i].node.src;
                     if(lazySrc && !overlayLoader.resource.watcherList[i].canvas && lazySrc == overlayLoader.resource.watcherList[i].node.src) {
                         overlayLoader.resource.watcherList[i].canvas = true;
                         overlayLoader.vars.imageId = i;
@@ -2603,6 +2625,9 @@ var overlayLoader = {
                 if(overlayLoader.vars.internalWebtoonId !== false  && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
                     overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wB = data.description;
                 }
+            }
+            if(data.webtoonComment && !overlayLoader.scanlated && overlayLoader.vars.webtoonComment && overlayLoader.value(overlayLoader.vars.webtoonComment) != data.webtoonComment) {
+                overlayLoader.value(overlayLoader.vars.webtoonComment, data.webtoonComment);
             }
             if(data.chapterList && data.chapterList instanceof Array) {
                 overlayLoader.resource.chapterList = data.chapterList;
