@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.25
+// @version         1.0.26
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -438,7 +438,7 @@ var overlayLoader = {
                     {path: '#au_pageflip/div.flip-page_container/div[]/div.img/img', observe: '#prev_page',
                         assign: 'imageList', innerPath: {style: '', keepOriginal: true}},
                     {path: '#comic_move/div[]', observe: '#comic_move',
-                        assign: 'chapterList', innerPath: {chapterId: 'a@href?no', chapterTitle: 'a/img/+'}},
+                        assign: 'chapterList', innerPath: {chapterId: 'a@href?no', chapterTitle: 'a/span.subj'}},
                     {path: '#comicRemocon/div.h_area/strong', style: 'background: none; text-indent: 0px; width: auto;',
                         translate: TEXT.capitalize(TEXT.remote)},
                     {path: '#goButton/span', className: ' ', style: 'margin: 0; color: black;',
@@ -1554,7 +1554,7 @@ var overlayLoader = {
                             assign: 'webtoonTitle'},
                         {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/span',
                             translate: 'Author'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/~span',
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/~span/a',
                             assign: 'webtoonAuthor'},
                         {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span',
                             translate: 'Genre'},
@@ -1580,8 +1580,8 @@ var overlayLoader = {
                             translate: ' chapters'},
                         {path: '#container/div.work_listBt_wp/div.work_list_area/div.sub_tit/div/a[]',
                             translate: ['Desc', 'Asc']},
-                        {path: '#container/div.work_listBt_wp/div.work_list_area/div.main_thum_list/ul/li[]',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@onclick?1', chapterTitle: 'a/span/div/span/'}},
+                        {path: '#container/div.work_listBt_wp/div.work_list_area/div.main_thum_list/ul/li[]', observe: '#container/div.work_listBt_wp/div.work_list_area/div.main_thum_list/ul',
+                            assign: 'chapterList', innerPath: {chapterId: 'a@onclick?0', chapterTitle: 'a/span/div/span/'}},
                     ],
                     css: [
                         {selector: '.ic_alarm',
@@ -1601,7 +1601,7 @@ var overlayLoader = {
                         {path: '#header/div.toon_view_topArea/div.listSlide/div/div/ul/li[]', observe: '#header/div.toon_view_topArea/div.listSlide/div',
                             assign: 'chapterList', innerPath: {chapterId: 'a@href?timesseq', chapterTitle: 'a/span.txt'}},
                         {path: '#container/div/div/div/p[]/img', observe: '#container/div/div/div',
-                            assign: 'imageList', innerPath: {style: '', src: 'data-src'}},
+                            assign: 'imageList', innerPath: {style: 'margin: auto;', src: 'data-src'}},
                         {path: 'div.extend_remocon_wrap/div.etc_bnr/span.name',
                             assign: 'webtoonTitle'},
                         {path: 'div.extend_remocon_wrap/div.etc_bnr/span.artist',
@@ -2144,8 +2144,11 @@ var overlayLoader = {
         }
         //-- localStorage and CORS request launch.
         //-- overloaderData {feedList, webtoonList}
-        this.data = localStorage.getItem('overloaderData');
-        this.data = this.data ? JSON.parse(this.data) : this.defaultData;
+        try {this.data = JSON.parse(localStorage.getItem('overloaderData'));}
+        catch(e) {this.data = this.defaultData;}
+        if(!this.data) {
+            this.data = this.defaultData;
+        }
         //this.webtoonList
         var accessFeed = [];
         if(this.vars.webtoonId) { //chapter page, or chapterList
