@@ -2,7 +2,7 @@
 // @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.24
+// @version         1.0.25
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -11,6 +11,7 @@
 // @match           http://comico.toast.com/*
 // @match           http://www.comico.jp/*
 // @match           http://www.foxtoon.com/*
+// @match           http://page.kakao.com/*
 // @match           http://comics.nate.com/*
 // @match           http://webtoon.olleh.com/*
 // @match           http://ttale.com/*
@@ -1517,151 +1518,105 @@ var overlayLoader = {
         // ----------------- OLLEH $olleh
         } else if(window.location.hostname == 'webtoon.olleh.com') {
             this.template = [
-                {   route: '(/main|/ranking|/toon/(weekList|genreList|toonList|timesList))',
+                {   route: '/web/(main|times_)',
                     html: [
-                        {path: '#header/div.top/h1/+',  tagName: 'h3', style: 'margin: 24px 5px; display: inline-block; background: #4c4c4c; width: 24px; height: 12px; cursor: pointer; position: relative;',
+                        {path: '#header/div.top/h1/+',  tagName: 'h3', style: 'float:left; display: inline-block; fill: black; width: 35px; height: 35px; margin: 12px 1em 0 0; cursor: pointer;',
                             assign: 'menu'},
-                        {path: '#header/div.topEtc/ul/li/+/li/a/img/+',  tagName: 'span', style: 'display: inline-block; width: 68px; background: white; font-size: 16px; font-family: Verdana; text-shadow: 1px 0; line-height: 42px; margin-left: -68px;',
-                            translate: 'Ranking'},
-                        {path: '#container/div.layout_right/div.m_weekly_ranking/ol/li[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: 'a@href?webtoonSeq', webtoonTitle: 'a/div.cont/div.name', webtoonAuthor: 'a/div.cont/div.cntEtc/span.author', webtoonBlurb: 'div.story/span'}},
-                        {path: '#container/div.layout_right/div.m_weekly_ranking/div.tit/img', tagName: 'h3',
-                            translate: 'Monthly Ranking'},
-                        {path: '#container/div.layout_right/div.m_weekly_ranking/div.more/a',
-                            translate: '+ More'}
-                    ],
-                    css: [
-                        {selector: '.topEtc .on span',
-                            style: 'color: #f14b59;'},
-                        {selector: '.topEtc a',
-                            style: 'color: #222;'}
+                        {path: '#header/div.top/div.h_gnb/ul/li[]/a',
+                            translate: ['Webtoon', 'Novel', 'Ranking', 'Berry Farm']},
+                        {path: '#header/div.top/div.h_gnb/ul/li[]/ul/li[]/a',
+                            translate: ['Grid', 'Genre', 'Grid', 'Genre', 'Comics', 'YOYOZINE', 'Events']},
+                        {path: '#header/div.top/div.h_gnb/ul/~li/ul/li[]/a',
+                            translate: ['Favs', 'Lists', 'Berry', 'Account']},
+                        {path: '#header/div.top/div.h_rt/div.h_etc/ul/li[]/a',
+                            translate: ['로그인', '회원가입'], by: ['Login', 'Sign Up']},
+                        {path: '#query@placeholder',
+                            translate: 'Search'}
                     ]
                 },
-                {   route: '/toon/(weekList|genreList|toonList|timesList)',
+                {   route: '/web/main',
                     html: [
-                        {path: '#header/div.subMenu/div/ul/li[]/a',
-                            translate: ['Weekday', 'Genre', 'Title']},
+                        {path: '#container/div.main_cont_wp/div/div.main_today_menu/a[]/span',
+                            translate: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
+                        {path: '#container/div.main_cont_wp/div/div.main_today_menu/+/div[]/div.main_tit/span',
+                            translate: ['Today\'s Webtoons', 'Today\'s Novels']},
+                        {path: '#container/div.main_cont_wp/div/div.main_today_menu/+/div[]/div.main_tit/div.right/a',
+                            translate: ['더보기'], by: ['View More']},
+                        {path: '#container/div.main_cont_wp/div/div.main_alarm/+/div[]/div.main_tit/span',
+                            translate: ['Our recommendations', 'Featured Today']},
+                        {path: '#container/div.main_cont_wp/div/div.main_alarm/+/div[]/div.main_tit/div.right/span/a[]',
+                            translate: ['웹툰', '소설'], by: ['Webtoon', 'Novel']},
                     ]
                 },
-                {   route: '/toon/(weekList|genreList|toonList)',
+                {   route: '/web/times_(list|nlist)',
                     html: [
-                        {path: '#container/div/div/ul/li[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: 'a@href?webtoonseq', webtoonTitle: 'a/span.conts/span.name', webtoonAuthor: 'a/span.conts/span.author|a/span.conts/span.info'}}
-                    ]
-                },
-                {   route: '/toon/toonList',
-                    html: [
-                        {path: '#container/div/div.toon_toon_list/div.tabEtc[]/div.thumbnailList/ul/li[]',
-                            assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?webtoonseq', webtoonTitle: 'a/span.li_tit/span', webtoonAuthor: 'a/span.li_author'}}
-                    ]
-                },
-                {   route: '/toon/genreList',
-                    html: [
-                        {path: '#container/div/div.toon_genre_list/div.tabEtc[]/div.thumbnailList/ul/li[]',
-                            assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?webtoonseq', webtoonTitle: 'a/span.li_tit/span', webtoonAuthor: 'a/span.li_author'}},
-                        {path: '#container/div/div.toon_genre_list/div.tab[]/a',
-                            translate: ['Daily', 'Humor', 'Drama', 'Fantasy', 'Emotion', 'Action', 'Complete']}
-                    ],
-                    css: [
-                        {selector: '.toon_genre_list .tab a',
-                            style: 'background-image: none !important; box-sizing: border-box; text-align: center; border: 1px solid lightgrey; border-bottom: 1px solid #f14b59; border-left-width: 0px; line-height: 45px; font-weight: bold;'},
-                        {selector: '.toon_genre_list .tab.tab01 a',
-                            style: 'border-left-width: 1px;'},
-                        {selector: '.toon_genre_list .tab a.on',
-                            style: 'background: #f14b59; border-color: #f14b59; color: white;'}
-                    ]
-                },
-                {   route: '/toon/weekList',
-                    html: [
-                        {path: '#container/div/div.toon_day_list/div.btm_conts/div/dl[]/dd[]',
-                            assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?webtoonseq', webtoonTitle: 'a/span.dd_tit/span', webtoonAuthor: 'a/span.dd_author'}},
-                        {path: '#container/div/div.toon_day_list/div/div.tit/img', tagName: 'h3',
-                            translate: 'Weekday list'},
-                        {path: '#container/div/div.toon_day_list/div.btm_conts/div/dl[]/dt',
-                            translate: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
-                    ],
-                    css: [
-                        {selector: '.toon_day_list .dl_list dt',
-                            style: 'text-indent: 0px; box-sizing: border-box; text-align: center; background: white; border-top: 1px solid #505050; border-right: 1px solid #EEE; line-height: 40px; font-weight: bold;'},
-                        {selector: '.toon_day_list .dl_list.dl_list00 dt',
-                            style: 'border-right: 0px;'},
-                        {selector: '.toon_day_list .dl_list dt.on',
-                            style: 'background: #f14b59; position: relative; border-right: none; color: white; border-top: none;'},
-                        {selector: '.toon_day_list .dl_list dt.on::before',
-                            style: 'content: \'\'; display: block; height: 0px; width: 0px; position: absolute; bottom: 5px; left: 0px; border-top: 15px solid #f14b59; border-left: 48px solid #505050;'},
-                        {selector: '.toon_day_list .dl_list dt.on::after',
-                            style: 'content: \'\'; display: block; height: 0px; width: 0px; position: absolute; bottom: 5px; right: 0px; border-top: 15px solid #f14b59; border-right: 48px solid #505050;'},
-                        {selector: '.toon_day_list .dl_list_on',
-                            style: 'position: relative;'},
-                        {selector: '.toon_day_list .dl_list_on::after',
-                            style: 'content: \'\'; display: block; width: 96px; height: 5px; position: absolute; top: 45px; left: 0px; background: #505050;'},
-
-                    ]
-                },
-                {   route: '/toon/timesList',
-                    html: [
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/div.main_tit',
+                        {path: '#container/div/div/div.work_listRt_text/span/span/div/span',
                             assign: 'webtoonTitle'},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/ul/li/span.author', style: 'background: none; line-height: 1em; font-size: 1em; width: auto; height: 24px; line-height: 24px; font-weight: bold;',
-                            translate: 'Author: '},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/ul/li/span.wr/',
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/span',
+                            translate: 'Author'},
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/~span',
                             assign: 'webtoonAuthor'},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/ul/li/span.wr/a', style: 'background: white; border: 1px solid #555; border-radius: 3px; margin-left: 10px; line-height: 24px; text-align: center;',
-                            translate: 'Works'},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/div.cont',
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span',
+                            translate: 'Genre'},
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span/+/span',
+                            translate: ['드라마', '판타지'], by: ['Drama', 'Fantasy']},
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span.week/-2/span',
+                            translate: 'Schedule'},
+                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span.week',
+                            translate: ['월', '화', '수', '목', '금', '토', '일'], by: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
+                        {path: '#container/div/div/div.work_listRt_text/span/span.bt_wr/span',
                             assign: 'webtoonBlurb'},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/div.btn/a@href?webtoonseq',
+                        {path: '#container/div/div/div.work_listRt_text/span/span.bt_wr/div/a@href?webtoonseq',
                             assign: 'webtoonId'},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/div.btn/a', style: 'line-height: 27px; text-align: center; box-sizing: border-box; background: #f14b59; border: 1px solid darkred; border-radius: 2px; color: white; font-weight: bold;',
-                            translate: 'FIRST'},
-                        {path: '#container/div.layout_left/div.toon_author_list/div/div.thumbEtc/div.btn/a.bt_type_favor', style: 'line-height: 27px;  box-sizing: border-box; text-align: center; background: white; border: 1px solid grey; border-radius: 2px; font-weight: bold;',
-                            translate: 'FAV'},
-                        {path: '#container/div.layout_left/div.toon_work_list/div.list_tit/img', tagName: 'h3',
-                            translate: 'Chapter list'},
-                        {path: '#container/div.layout_left/div.toon_work_list/div.list_epi[]',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@href?timesseq', chapterTitle: 'a/span.thumbEtc/span/span'}}
+                        {path: '#container/div/div/div.work_listRt_text/span/span.bt_wr/div/a[]',
+                            translate: ['First', 'Fav', 'Yoyozine']},
+                        {path: '#container/div.work_listBt_wp/div.work_alarm/span/span.ic_alarm',
+                            translate: 'Notice'},
+                        {path: '#container/div.work_listBt_wp/div.work_alarm/span/span.tx_alarm',
+                            assign: 'webtoonNote'},
+                        {path: '#listCnt/-',
+                            translate: ' '},
+                        {path: '#listCnt/+',
+                            translate: ' chapters'},
+                        {path: '#container/div.work_listBt_wp/div.work_list_area/div.sub_tit/div/a[]',
+                            translate: ['Desc', 'Asc']},
+                        {path: '#container/div.work_listBt_wp/div.work_list_area/div.main_thum_list/ul/li[]',
+                            assign: 'chapterList', innerPath: {chapterId: 'a@onclick?1', chapterTitle: 'a/span/div/span/'}},
                     ],
                     css: [
-                        {selector: '.toon_author_list .list_cont .wr',
-                            style: 'max-width: none;'}
+                        {selector: '.ic_alarm',
+                            style: 'width: auto; border-radius: 25%; border: 1px solid #888; background: none; padding: 3px; color: #888; height: auto; line-height: 1em;'},
                     ]
                 },
-                {   route: '/ranking',
+                {   route: '/web/times_view',
                     html: [
-                        {path: '#container/div.layout_left/div.ranking_best_list/div/div/img', tagName: 'h3',
-                            translate: 'Monthly ranking'},
-                        {path: '#container/div.layout_left/div.ranking_best_list/div.listArea[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: 'a@href?webtoonSeq', webtoonTitle: 'a/div.rank_cont/div.top/span.name', webtoonAuthor: 'a/div.rank_cont/div.etc/span.author', webtoonBlurb: 'a/div.rank_cont/div.cont_wr/div/span.cont_r'}},
-                    ]
-                },
-                {   route: '/toon/timesDetail',
-                    html: [
-                        {path: '#wrap/div.toon_header/div/div/h1/+', tagName: 'h2', style: 'display: inline-block; width: 32px; height: 16px; float: left; margin-top: 14px;',
-                            assign: 'menu'},
-                        {path: '#wrap/div.toon_header/div/div/div.toon_tit/strong', style: 'display: inline-block; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;',
-                            assign: 'webtoonTitle'},
-                        {path: '#wrap/div.toon_header/div/div/div.toon_tit/strong/+', tagName: 'span', style: 'display: inline-block; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;',
-                            assign: 'chapterTitle'},
-                        {path: '#times_list/option[]',
-                            assign: 'chapterList', innerPath: {chapterId: '-/+/option@value', chapterTitle: '-/+/option'}},
-                        {path: '#wrap/div.toon_header/div/div.h_right/div.other_btn/a.prev',
-                            translate: 'PREV'},
-                        {path: '#wrap/div.toon_header/div/div.h_right/div.other_btn/a.next',
-                            translate: 'NEXT'},
-                        {path: '#wrap/div.toon_header/div/div.h_right/div.other_list/a',
-                            translate: 'LIST'},
-                        {path: '#wrap/div.toon_header/div/div.h_right/div.other_mark/a',
-                            translate: 'FAV'},
-                        {path: '../html/head/link/+/meta/+/meta/+/meta@content?webtoonseq',
+                        {path: '#header/div.toon_view_topArea/div/div.left/a',
+                            translate: 'List'},
+                        {path: '#header/div.toon_view_topArea/div/div.left/a@href?webtoonseq',
                             assign: 'webtoonId'},
-                        {path: '../html/head/link/+/meta/+/meta/+/meta@content?timesseq',
+                        {path: '#header/div.toon_view_topArea/div/div.center/div/span',
+                            assign: 'chapterTitle'},
+                        {path: 'head/meta/+/meta/+/meta@content?timesseq',
                             assign: 'chapterId'},
-                        {path: '#wrap/div.toon_container/div.toon_view_quick/div/a[]',
-                            translate: ['TOP', 'BOTTOM']},
-                        {path: '#wrap/div.toon_container/div.toon_view_content/p[]/img',
-                            assign: 'imageList', innerPath: {style: 'margin-left: auto; margin-right: auto;'}}
+                        {path: '#header/div.toon_view_topArea/div.listSlide/div/div/ul/li[]', observe: '#header/div.toon_view_topArea/div.listSlide/div',
+                            assign: 'chapterList', innerPath: {chapterId: 'a@href?timesseq', chapterTitle: 'a/span.txt'}},
+                        {path: '#container/div/div/div/p[]/img', observe: '#container/div/div/div',
+                            assign: 'imageList', innerPath: {style: '', src: 'data-src'}},
+                        {path: 'div.extend_remocon_wrap/div.etc_bnr/span.name',
+                            assign: 'webtoonTitle'},
+                        {path: 'div.extend_remocon_wrap/div.etc_bnr/span.artist',
+                            assign: 'webtoonAuthor'},
+                        {path: 'div.extend_remocon_wrap/div.etc_bnr/span.genre',
+                            translate: ['드라마', '판타지'], by: ['Drama', 'Fantasy']},
+                        {path: 'div.extend_remocon_wrap/a[]',
+                            translate: ['prev', 'next']},
+                        {path: 'div.extend_remocon_wrap/div.dir_etc_bt/div/a[]',
+                            translate: ['top', 'bottom']},
+                        {path: 'div.mini_remocon_wrap/div/div.v_bt/a[]',
+                            translate: ['top', 'bottom']},
                     ]
                 },
+                
             ];
         // ----------------- TTALE $ttale
         } else if(window.location.hostname == 'ttale') {
@@ -1744,6 +1699,99 @@ var overlayLoader = {
                     {selector: '.nav .title',
                         style: 'width: 800px; left: 131px;'},
                 ]
+            }
+            ];
+        // ----------------- KAKAO $kakao
+        } else if (window.location.hostname == 'page.kakao.com') {
+            this.template = [
+            {  route: '/(main|today)',
+                html: [
+                    {path: '#header/h1/span/+', tagName: 'span', style: 'cursor: pointer; display: inline-block; vertical-align: top; width: 1em; height: 1em; fill: white; margin: -0.15em 0 0 0.5em;',
+                        assign: 'menu'},
+                    {path: '#gnb/span[]/i',
+                        translate: ['Cartoon', 'Novel', 'Book', 'Lifestyle']},
+                    {path: '#navBox/div[]/span',
+                        translate: ['웹툰', '기다리면무료', '순정', '소년', '액션/무협', '웹소설', '판타지', '무협', '로맨스'], by: ['Webtoon', 'Free', 'Girlish', 'Boyish', 'Action/Martial', 'Fiction', 'Fantasy', 'Martial Arts', 'Romance']},
+                    {path : '#recom/div.btnWrp/div[]/span',
+                        translate: ['추천', '인기'], by: ['Recommended', 'Popular']},
+                    {path : '#rank/div.btnWrp/div[]/span',
+                        translate: ['추천', '인기'], by: ['Recommended', 'Popular']}, 
+                    {path: '#week/div.menu/span/span[]',
+                        translate: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'all']},
+                    {path: '#week/div.subsection/span/div[]',
+                        assign: 'webtoonList', innerPath: {webtoonId: 'span@data-href?1', webtoonTitle: 'span/span/strong/~', webtoonAuthor: 'span/~span'}},
+                    
+                ],
+                css: [
+                    {selector: '.logoWrp',
+                        style: 'display: inline-block;'},
+                ] 
+            },
+            {  route: '/home',
+                html: [
+                    {path: 'div.pc_header/h1/a/+', tagName: 'span', style: 'cursor: pointer; display: inline-block; vertical-align: top; width: 1.5em; height: 1.5em; fill: white; margin: -0.25em 0 0 0.5em;',
+                        assign: 'menu'},
+                    {path: 'input.seriesId@value',
+                        assign: 'webtoonId'},
+                        
+                    {path: 'div.con_pc/div/div/h2/span/-',
+                        assign: 'webtoonTitle'},
+                    {path: 'div.con_pc/div/div/h2/span',
+                        assign: 'webtoonAuthor'},
+                    {path: 'div.con_pc/div/div/a',
+                        translate: 'FIRST'},
+                    {path: 'div.con_pc/div/~div/div.contentSlide/a[]',
+                        assign: 'chapterList', innerPath: {chapterId: 'strong/^a@data-productid', chapterTitle: 'strong'}},
+                    
+                    {path: 'div.pc_contentWrp/div/div/h2/span/-',
+                        assign: 'webtoonTitle'},
+                    {path: 'div.pc_contentWrp/div/div/h2/span',
+                        assign: 'webtoonAuthor'},
+                    {path: 'div.pc_contentWrp/div/div/a',
+                        translate: 'FIRST'},
+                    {path: 'div.pc_contentWrp/div/~div/div.contentSlide/table/thead/tr/th[]',
+                        translate: ['Title', 'Published']},
+                    {path: 'div.pc_contentWrp/div/~div/div.contentSlide/table/tbody/tr[]',
+                        assign: 'chapterList', innerPath: {chapterId: 'td/^tr@data-productid', chapterTitle: 'td/span.titleArea'}},
+                ]
+            },
+            {  route: '/viewer',
+                html: [
+                    {path: 'div/div/h1/+', tagName: 'span', style: 'cursor: pointer; position: absolute; top: 15px; left: 156px; width: 25px; height: 25px; fill: white;',
+                        assign: 'menu'},
+                    {path: 'div/div/span.title',
+                        assign: 'webtoonTitle'},
+                    {path: 'input.seriesId@value',
+                        assign: 'webtoonId'},
+                    {path: 'div/div/span.btnWrp/a[]/', tagName: 'span', 
+                        translate: ['HOME', 'LIST', 'PREV', 'NEXT']},
+                ],
+                css: [
+                    {selector: '.pcToonViewList .topBar .title',
+                        style: 'left: 190px;'},
+                    {selector: '.pcToonViewList .topBar a',
+                        style: 'text-indent: 0; position: relative;'},
+                    {selector: '.pcToonViewList .topBar a span',
+                        style: 'z-index: 2; position: absolute; display: inline-block; color: white; box-sizing: border-box; line-height: 56px; top: 0; left: 0; font-weight: bold; font-size: 0.75em;'},
+                    {selector: '.topBar .btnWrp a:before',
+                        style: 'content: ""; display: block; height: 100%; width: 60px; box-sizing: border-box; background: #333; position: absolute; top: 0; left: 0; z-index: 1;'},
+                    {selector: '.topBar .btnWrp a:hover:before',
+                        style: 'background: #494949;'},
+                    {selector: '.topBar .btnWrp a.home:before, .topBar .btnWrp a.list:before',
+                        style: 'margin-left: 36px;'},
+                    {selector: '.topBar .btnWrp a.pc_view_prev:before',
+                        style: 'margin-left: 22px;'},
+                    {selector: '.topBar .btnWrp a.pc_view_next:before',
+                        style: 'margin-right: 30px;'},
+                    {selector: '.pcToonViewList .topBar a.home span',
+                        style: 'padding-left: 40px;'},
+                    {selector: '.pcToonViewList .topBar a.list span',
+                        style: 'padding-left: 33px;'},
+                    {selector: '.pcToonViewList .topBar a.pc_view_prev span',
+                        style: 'padding-left: 25px;'},
+                    {selector: '.pcToonViewList .topBar a.pc_view_next span',
+                        style: 'padding-right: 35px; width: 100%; text-align: right;'},
+                ] 
             }
             ];
         // ----------------- LENZHIN $lezhin
@@ -1841,7 +1889,7 @@ var overlayLoader = {
                     {path: '#mainheader/div/div/div', className: 'overtooning', style: 'cursor: pointer;',
                         assign: 'menu'},
                     {path: '#nav-main/a[]',
-                        translate: ['Scheduled', 'Publications', 'Top 100', 'Mature', 'Novel']},
+                        translate: ['Schedule', 'Publications', 'Top 100', 'Mature', 'Novel']},
                     {path: '#auth-tabs/a[]',
                         translate: ['Login', 'Sign Up']},
                     /*{path: '#sidenav-exit/div/div.sidenav-coinwrap/div/br/-',
@@ -1912,12 +1960,14 @@ var overlayLoader = {
                         assign: 'webtoonId'},
                     {path: '#cover-info/div/div.info/div.info-btns/a.btn-continue',
                         translate: 'Continue'},
+                    {path: '#cover-info/div/div.info/div.info-btns/a.btn-first-episode',
+                        translate: 'First episode'},
                     {path: '#btn-sort-desc',
                         translate: 'Desc'},
                     {path: '#btn-sort-asc',
                         translate: 'Asc'},
                     {path: '#schedule',
-                        translate: ['매주', '목요일', '연재'], by: ['', 'Thursdays', 'serie']},
+                        translate: ['매주', '목요일', '연재'], by: ['Updates Every', 'Thursday', '']},
                     {path: '#comic-episode-list/li[]/div.episode-price/span', observe: '#comic-episode-list',
                         translate: ['무료', '코인'], by: ['Free', 'coins']},
                     {path: '#comic-episode-list/li[]', observe: '#comic-episode-list',
@@ -2509,6 +2559,7 @@ var overlayLoader = {
             overlayLoader.addLog('[overLoader.canvas] Cancelled (no registered node).');
             return false;
         }
+
         overlayLoader.vars.imageList.node = pathObject.node;
         if(window.location.hostname == 'm.comic.naver.com' && !overlayLoader.resource.watcher) { //special behavior for m.comic.naver.com
             var saveNode = overlayLoader.vars.imageList.node;
@@ -2536,7 +2587,11 @@ var overlayLoader = {
                 }
             };
         }
-        overlayLoader.resource.rawImage.src = pathObject.node.src;
+        if(pathObject.innerPath.src) {
+            overlayLoader.resource.rawImage.src = pathObject.node.getAttribute(pathObject.innerPath.src);
+        } else {
+            overlayLoader.resource.rawImage.src = pathObject.node.src;
+        }
     },
     
     naverMobileWatcher: function() {
