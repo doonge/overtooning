@@ -1,8 +1,8 @@
 ﻿// ==UserScript==
-// @name            overtooning
+// @name            overtoonin
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.0.26
+// @version         1.1.0
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -20,55 +20,8 @@
 // @grant           none
 // ==/UserScript==
 
-//  $top
-
-var TEXT = {
-    //Time
-    mon: 'mon', tue: 'tue', wed: 'wed', thu: 'thu', fri: 'fri', sat: 'sat', sun: 'sun',
-    monday: 'monday', tuesday: 'tuesday', wednesday: 'wednesday', thursday: 'thursday', friday: 'friday', saturday: 'saturday', sunday: 'sunday',
-    week: 'week', weekday: 'weekday', month: 'month', year: 'year', today: 'today',
-    monthly: 'monthly', weekly: 'weekly',
-    //Genre - comment: historical > history, and shorter 'slice of life'??
-    webtoon: 'webtoon', bestChallenge: 'best challenge', challenge: 'challenge', smartoon: 'smarttoon',
-    webtoons: 'webtoons', bestChallenges: 'best challenges', challenges: 'challenges', smartoons: 'smarttoons',
-    genre: 'genre', theme: 'theme',
-    complete: 'complete', completed: 'completed', ongoing: 'ongoing',
-    episode: 'episode', omnibus: 'omnibus', story: 'story', daily: 'daily',
-    humour: 'humour', fantasy: 'fantasy', action: 'action', drama: 'drama', romance: 'romance', sliceOfLife: 'slice of life', thriller: 'thriller', historical: 'historical', sport: 'sport',
-    //Navigation
-    index: 'index', home: 'home', navbar: 'navbar',
-    top: 'top', bottom: 'bottom', next: 'next', previous: 'previous', prev: 'prev',
-    page: 'page', end: 'end',
-    //Properties
-    title: 'title', artist: 'artist', author: 'author', blurb: 'blurb', type: 'type', comment: 'comment',
-    rating: 'rating',  votes: 'votes', visits: 'visits', ranking: 'ranking', rate: 'rate',
-    voters: 'voters',
-    date: 'date', update: 'update', published: 'published',
-    image: 'image',
-    //Generic keywords
-    list: 'list', first: 'first', fav: 'fav', view: 'view',
-    sex: 'sex', age: 'age',
-    _all: 'all', more: 'more', matches: 'matches', go: 'go', by: 'by', average: 'average',
-    submit: 'submit',
-    recommended: 'recommended', MY: 'MY', recommendations: 'recommendations', store: 'store',
-    //naver specific
-    popular: 'popular', brand: 'brand', pick: 'pick', remake: 'remake', multiPlot: 'multi-plot',
-    _new: 'new', _this: 'this', _try: 'try',
-    remote: 'remote',
-    //daum specific
-    autoscroll: 'autoscroll',
-    
-
-    //Dynamic construction -- not anything special (based on english).
-    //Might want to invert stuff for other langages and/or add suffix/prefix.
-    verbalize: function(verb, something) {return verb + ' ' + something;},
-    adjectivize: function(adjective, something) {return adjective + ' ' + something;},
-    adverbize: function(adverb, something) {return adverb + ' ' + something;},
-    compoundize: function(noun1, noun2) {return noun2 + ' ' + noun1;},
-    possessivize: function(noun1, noun2) {return noun1 + ' of ' + noun2},
-    shortPossessivize: function(noun1, noun2) {return noun2 + '\'s ' + noun1},
-    capitalize: function(string) {return string[0].toUpperCase() + string.slice(1);}
-};
+var OTOON_VERSION = '1.1.1';
+var OTOON_MESSAGE = 'More robust canvases + Naver exception';
 
 // -- MUTATION OBSERVER rough fallback for older browsers.
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
@@ -83,7 +36,7 @@ if(!MutationObserver) {
             this.textContent = node.textContent;
             this.interval = window.setInterval(function() {
                     if(arguments[0].textContent != arguments[0].node.textContent) {
-                        arguments[0].callback();
+                        arguments[0].callback([{target: arguments[0].node}]);
                     }
                 },
             1000, this);
@@ -98,2030 +51,630 @@ if(!MutationObserver) {
 }
 
 // -- Banzai.
-var overlayLoader = {
-    defaultData: {
-        feedList: [
-            {url: 'http://bumblebits.net/oddsquad/feed', name: 'OddSquad Scanlation', lastUpdate: 0},
-            {url: 'http://blackhorus.bumblebits.net', name: 'BlackHorus Scans', lastUpdate: 0},
-        ],
-        webtoonList: []
-    },
-    
-    log: [],
-    vars: {startingImage: 0, imageId: 0, imageIdDistortion: null}, //Stores interactive values (webtoonAuthor, webtoonTitle, stuff like that).
-    savePath: {name: [], node: []}, //Stores previous result for the fetch function (so as not to refetch everything all the time), 0 = ref node.
-    observer: [],
-    template: [],
-    stylesheet: false,
-    
-    publisher: 'unknown',
-    activeFeed: false,
-
-    resource: {timer: false, styling: '', rawImage: new Image(), overlay: new Image()}, //Stores values for the load function ?
-    keyList: [  '0TYxZWNhOWVhNGViYmViMDM5YjczNzkwNTFYzczZjc45GFDg%#$1234%#$@5',
-                'ZGI1ODliZTJmMDQzYjRiMGM1MjdkODllOWI5ZWVmYzkDFK(*lIYUtU%^YHERT%',
-                'NmUwYzZiMDU5MWU4ZGM4OTliOTE1MTU5Yzc3Nzg0NzYHFG$^*46&$^#@#$@$3',
-                'gdfSDFSW2347634%FS2y678gfHBhhfJityDswertyy56h7hbyrtvggftj856g23G#',
-                'dfGSDF23f1273bg6@fgwvtrhBHU*TRRTYf12y5G^%$^%G@1fD!@#GF^DR3tyrtg',
-                'SDFG4f5rdtfwE%#G&^#34GF^$%&^@FTHY$%^gdfGHERBTHJUWCwqTV@$0%B#H',
-                'DFWEVf345Y#d512Y$%&768%^&G@$%^@#GYU#$^jTYHTRU#^YWETWEF99fhTYU',
-                '<>UThwvWEFSTjuJY&(&*HR!@#!CFDVAcdfsdtaectryrt75463452t3FWCERYfd'],
-    data: {},
-    queries: [], //Stores queries for the shiftQueries function.
-    scanlated: false,
-    
-    // --------------------- DEFINITIONS
-    loadTemplate: function() {
-        //------------------------------- COMIC.NAVER.COM $naver
-        if(window.location.hostname == 'comic.naver.com') {
-            this.template = [
-            {  route: '',
-                html: [
-                    {path: '#snb_wrap/h1/a.h_novel/+', tagName: 'div', style: 'display: inline-block; float: left; margin: -5px 10px 0 0; fill: #434343; color: #4fa52b; width: 35px; height: 35px; cursor: pointer;',
-                        assign: 'menu'},
-                    {path: '#menu/ul/li[]/a/em',
-                        translate: [TEXT.index, TEXT.webtoon, TEXT.bestChallenge, TEXT.challenge, TEXT.recommended, TEXT.MY]}
-                ],
-                css: [
-                    {selector: '#header #menu',
-                        style: 'background: linear-gradient(#444444, #424242, #3e3e3e, #2f2f2f, #282828, #222222) #424242; border: 2px solid #686868; border-width: 2px 0 0 2px;'},
-                    {selector: '#header #menu ul.menu li',
-                        style: 'background: none; float: none; display: inline-block; width: auto !important; height: auto; line-height: 38px;'},
-                    {selector: '#header #menu ul.menu li a',
-                        style: 'background: none; width: auto; display: inline;'},
-                    {selector: '#header #menu ul.menu li em',
-                        style: 'position: static; background: none; top: 0px; color : white; font-weight: bold; font-size: 1.2em; margin: 0 0 0 15px; padding: 5px; text-transform: capitalize;'},
-                    {selector: '#header #menu ul.menu li a.current em',
-                        style: 'color: gold; background: #222; border: #1e1e1e solid 1px; border-radius: 3px;'},
-                    {selector: '.menu_nine, .menu_fifth, .menu_sixth',
-                        style: 'display: none !important;'}
-                ]
-            },
-            {  route: '/webtoon',
-                html: [
-                    {path: '#submenu/ul/li[]/a/em', style: 'display: block; text-align: center; height: 100%; line-height: 34px; position: static; background-color: #F1F1F1;',
-                        translate: [TEXT.capitalize(TEXT.week), TEXT.capitalize(TEXT.genre), TEXT.capitalize(TEXT.title), TEXT.capitalize(TEXT.artist), TEXT.capitalize(TEXT.year), TEXT.capitalize(TEXT.theme), TEXT.capitalize(TEXT.complete)]}
-                ],
-                css: [
-                    {selector: '#submenu a.current em',
-                        style: 'color: black; font-weight: bold;'}
-                ]
-            },
-            {  route: '/webtoon/(detail|list|weekday|weekdayList)',
-                html: [
-                    {path: '#content/ul.category_tab/li[]/a', style: 'text-transform: capitalize;', //Fix for Firefox "new session" bug (two category_tab instead of one??).
-                        translate: [TEXT.week, TEXT.monday, TEXT.tuesday, TEXT.wednesday, TEXT.thursday, TEXT.friday, TEXT.saturday, TEXT.sunday]}
-            ]},
-            {  route: '/webtoon/(genre|period|finish)',
-                html: [
-                    {path: '#content/div.list_area/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'dl/dt/a@href?titleId', webtoonTitle: 'dl/dt/a', webtoonAuthor: 'dl/dd.desc/a'}}
-                ],
-                css: [
-                    {selector: '.img_list dt a',
-                        style: 'display: inline-block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'}
-                ]
-            },
-            {  route: '/(genre|bestChallenge|challenge)',
-                html: [
-                    {path: '#content/div.snb/ul[]/li[]/a',
-                        translate: [TEXT.capitalize(TEXT._all), TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]},
-                    {path: '#content/div.mainTodayBox/h3/img', tagName: 'em', style: 'margin-left: 20px;',
-                        translate: TEXT.todaysPopular},
-                    {path: '#content/div.mainTodayBox/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'h4/a@href?titleId', webtoonTitle: 'h4/a', webtoonAuthor: 'ul/li/+/li/span/a'}},
-                    {path: '#content/div.weekchallengeBox[]/table/tbody/tr[]/td. []', className: 'challengeListDot doonge',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div.challengeInfo/h6/a@href?titleId', webtoonTitle: 'div.challengeInfo/h6/a', webtoonAuthor: 'div.challengeInfo/a.user', webtoonBlurb: 'div.challengeInfo/div.summary'}}
-                ],
-                css: [
-                    {selector: '.challengeInfo h6.challengeTitle a',
-                        style: 'display: inline-block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.challengeInfo .summary',
-                        style: 'display: inline-block; width: 100%; height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: 'h4.mainTodaySubtlt a',
-                        style: 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: 'table.challengeList td.challengeListDot:not([class="challengeListDot doonge"]), table.challengeList colgroup',
-                        style: 'display: none;'},
-                    {selector: 'table.challengeList td:first-of-type',
-                        style: 'background: none;'},
-                    {selector: 'table.challengeList td + td',
-                        style: 'padding-left: 23px;'},
-                    {selector: '.snb .spot + ul li a',
-                        style: 'padding: 10px 7px 7px;'}
-                ]
-            },
-            {  route: '/webtoon/theme',
-                html: [
-                    {path: '#content/div.list_area[]/h4/strong',
-                        translate: [TEXT.brandPick, TEXT.remake, TEXT.multiPlot, TEXT.sport]},
-                    {path: '#content/div.list_area[]/h4/strong/+',
-                        translate: [' ' + TEXT.theme, ' ' + TEXT.theme, ' ' + TEXT.theme, ' ' + TEXT.theme]},
-                    {path: '#content/div.list_area[]/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'dl/dt/a@href?titleId', webtoonTitle: 'dl/dt/a', webtoonAuthor: 'dl/dd.desc/a'}}
-                ],
-                css: [
-                    {selector: '.img_list dt a',
-                        style: 'display: inline-block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'}
-                ]
-            },
-            {  route: '/webtoon/genre',
-                html: [
-                    {path: '#content/ul.category_tab/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]},
-                    {path: '#content/div.view_type/h3/img', tagName: 'span',
-                        translate: TEXT.capitalize(TEXT.matches) + ':'},
-                    {path: '#content/div.view_type/h3/~img', tagName: 'span',
-                        translate: ' '},
-                ],
-                css: [
-                    {selector: '.webtoon .category_tab2 li, .webtoon .category_tab2 li.on2',
-                        style: 'width: auto;'},
-                    {selector: '.webtoon .category_tab2 li a',
-                        style: 'padding-left: 0.7em; padding-right: 0.7em;'},
-                    {selector: '.webtoon .view_type h3 em', //hide the korean
-                        style: 'background: none; margin: 0; padding: 0; text-indent: -1em; line-height: 22px; overflow: hidden;'},
-                ]
-            },
-            {  route: '/webtoon/weekdayList',
-                html: [
-                    {path: '#content/div.webtoon_spot/h3/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.recommendations)},
-                    {path: '#content/div.webtoon_spot/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'dl/dt/a@href?titleId', webtoonTitle: 'dl/dt/a/strong', webtoonAuthor: 'dl/dd/p/a'}},
-                    {path: '#content/div.list_area/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'dl/dt/a@href?titleId', webtoonTitle: 'dl/dt/a', webtoonAuthor: 'dl/dd.desc/a'}},
-                    {path: '#content/div.view_type/h3/img', tagName: 'span',
-                        translate: TEXT.capitalize(TEXT.compoundize(TEXT.webtoons, TEXT.weekday))},
-                ],
-                css: [
-                    {selector: '.webtoon .list_area .img_list li dt a',
-                        style: 'display: inline-block; width: 124px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'}
-                ]
-            },
-            {  route: '/webtoon/finish',
-                html: [
-                    {path: '#content/div.view_type/h3/img', tagName: 'span',
-                        translate: TEXT.capitalize(TEXT.adjectivize(TEXT.completed, TEXT.webtoons))},
-                ]
-            },
-            {  route: '/genre/bestChallenge',
-                html: [
-                    {path: '#content/h3/img', tagName: 'span',
-                        translate: TEXT.capitalize(TEXT._all)},
-                    {path: '#content/h3/ul/li[]/a/em',
-                        translate: [TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.rating)]}
-                ],
-                css: [
-                    {selector: '#content ul.titleSort a',
-                        style: 'background: none; width: auto;'},
-                    {selector: '#content ul.titleSort em',
-                        style: 'display: block; font-weight: normal;'},
-                    {selector: '#content ul.titleSort em::before',
-                        style: 'content: "✓ ";'},
-                    {selector: '#content ul.titleSort a[class*="_on"] em',
-                        style: 'font-weight: bold;'},
-                    {selector: '#content ul.titleSort a[class*="_on"] em::before',
-                        style: 'color: red;'},
-                ]
-            },
-            {  route: '/genre/challenge',
-                html: [
-                    {path: '#content/h3/ul.h_tab_area/li[]/a/em',
-                        translate: [TEXT.capitalize(TEXT.recommended), TEXT.capitalize(TEXT._all)]},
-                    {path: '#content/h3/ul.titleSort/li[]/a/em',
-                        translate: [TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.rating)]}
-                ],
-                css: [
-                    {selector: '#content ul.titleSort a, #content ul.h_tab_area a',
-                        style: 'background: none; width: auto;'},
-                    {selector: '#content ul.titleSort em, #content ul.h_tab_area em',
-                        style: 'display: block; font-weight: normal;'},
-                    {selector: '#content ul.h_tab_area em',
-                        style: 'font-weight: bold; color: grey; font-size: 1.2em; padding: 0 10px 0 0;'},
-                    {selector: '#content ul.h_tab_area a[class*="_on"] em',
-                        style: 'color: black;'},
-                    {selector: '#content ul.titleSort em::before',
-                        style: 'content: "✓ ";'},
-                    {selector: '#content ul.titleSort a[class*="_on"] em',
-                        style: 'font-weight: bold;'},
-                    {selector: '#content ul.titleSort a[class*="_on"] em::before',
-                        style: 'color: red;'},
-                ]
-            },
-            {  route: '/webtoon/(weekdayList|finish|genre)',
-                html: [
-                    {path: '#content/div.view_type/ul.sortby/li[]/a/img', tagName: 'span',
-                        translate: [TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.rating), TEXT.adverbize(TEXT.by, TEXT.title)]},
-                    {path: '#content/div.list_area/table/thead/tr/th[]/span',
-                        translate: [TEXT.capitalize(TEXT.title), TEXT.capitalize(TEXT.rating), TEXT.capitalize(TEXT.author), TEXT.capitalize(TEXT.update)]},
-                    {path: '#content/div.list_area/table/tbody/tr[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'td.subject/a@href?titleId', webtoonTitle: 'td.subject/a/strong', webtoonAuthor: 'td/+/td/+/td/a'}},
-                ],
-                css: [
-                    {selector: '.webtoon .table_list_area table th',
-                        style: 'background: none;'},
-                    {selector: '.webtoon .table_list_area table th span',
-                        style: 'text-indent: 0;'},
-                ]
-            },
-            {  route: '/webtoon/weekday.nhn', //add a .nhn to distinguish from weekdayList
-                html: [
-                    {path: '#content/div.webtoon_spot2/h3/img', tagName: 'em', style: 'text-transform: capitalize;',
-                        translate: TEXT.shortPossessivize(TEXT.adjectivize(TEXT._new, TEXT.webtoons), TEXT.adjectivize(TEXT._this, TEXT.month))},
-                    {path: '#content/div.webtoon_spot2/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?titleId', webtoonTitle: 'a/strong', webtoonAuthor: 'p/a', webtoonBlurb: 'p/+/p'}},
-                    {path: '#content/div.list_area/div[]/div/h4/span', style: 'display: block; z-index: 1; line-height: 31px; text-align: center; font-weight: bold; text-transform: capitalize;',
-                        translate: [TEXT.monday, TEXT.tuesday, TEXT.wednesday, TEXT.thursday, TEXT.friday, TEXT.saturday, TEXT.sunday]},
-                    {path: '#content/div.list_area/div[]/div/ul/li[]',
-                        assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?titleId', webtoonTitle: 'a'}},
-                    {path: '#content/div.view_type/h3/img', tagName: 'span',
-                        translate: TEXT.capitalize(TEXT.adjectivize(TEXT.ongoing, TEXT.webtoons))},
-                    {path: '#content/div.view_type/ul.sortby/li[]/a/img', tagName: 'span',
-                        translate: [TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.rating), TEXT.adverbize(TEXT.by, TEXT.title)]},
-                ],
-                css: [
-                    {selector: '.webtoon .daily_all .col h4',
-                        style: 'background: none;'},
-                    {selector: '.webtoon .list_area .col_selected h4 span',
-                        style: 'color: #FDCB00;'},
-                    {selector: '.webtoon .list_area .col a.title',
-                        style: 'display: inline-block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.webtoon .webtoon_spot2 ul li p + p',
-                        style: 'height: 32px; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.webtoon .webtoon_spot2 ul li a strong',
-                        style: 'display: inline-block; width: 210px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'}
-                ]
-            },
-             {  route: '/(webtoon|bestChallenge|challenge)/list',
-                html: [
-                    {path: '#content/div.comicinfo/div.thumb/a@href?titleId',
-                        assign: 'webtoonId'},
-                    {path: '#content/div.comicinfo/div.detail/h2',
-                        assign: 'webtoonTitle'},
-                    {path: '#content/div.comicinfo/div.detail/h2/span.wrt_nm',
-                        assign: 'webtoonAuthor'}, //regular - ?? check if difference?
-                    {path: '#content/div.comicinfo/div.detail/p',
-                        assign: 'webtoonBlurb', style: 'height: 50px; text-overflow: ellipsis;'},
-                    {path: '#content/div.comicinfo/div.detail/p/+/ul.btn_group/li[]/a/span',
-                        translate: [TEXT.fav.toUpperCase(), TEXT.first.toUpperCase(), TEXT.artist.toUpperCase()], className: ' '},
-                    {path: '#content/div.comicinfo/+/table.viewList/thead/tr/th[]',
-                        translate: [TEXT.capitalize(TEXT.image), TEXT.capitalize(TEXT.title), TEXT.capitalize(TEXT.ranking), TEXT.capitalize(TEXT.date)]},
-                    {path: '#content/div.comicinfo/+/table.viewList/tbody/tr/+/tr[]',
-                        assign: 'chapterList', innerPath: {chapterId: 'td.title/a@onclick?1', chapterTitle: 'td.title/a/'}},
-                    {path: '#content/div.pagenavigation/a.pre',
-                        translate: TEXT.capitalize(TEXT.adjectivize(TEXT.prev, TEXT.page))},
-                    {path: '#content/div.pagenavigation/a.next',
-                        translate: TEXT.capitalize(TEXT.adjectivize(TEXT.next, TEXT.page))}
-                ],
-                css: [
-                    {selector: '.btn_group li .book_maker, .btn_group li .first, .btn_group li .lst, .btn_group li .other, .btn_group li .other2',
-                        style: 'background: #FCFCFC; border: 1px #CECECE solid; border-radius: 2px; height: 25px; text-align: center; line-height: 25px;'},
-                    {selector: '.btn_group li .book_maker span, .btn_group li .first span, .btn_group li .lst span, .btn_group li .other span, .btn_group li .other2 span',
-                        style: 'background: none !important; text-indent: 0px !important; margin: 0 !important;'},
-                    {selector: '.btn_group li .book_maker span::before',
-                        style: 'content: \'★ \'; color: #17ce29; text-shadow: 0 0 1px #16b225;'},
-                    {selector: '.comicinfo .detail p',
-                        style: 'text-overflow: ellipsis; word-break: normal; word-wrap: normal;'}
-                ]
-            },
-            {  route: '/(webtoon|bestChallenge|challenge)/detail',
-                html: [
-                    {path: '#content/div.section_spot/div.comicinfo/div.thumb/a@href?titleId',
-                        assign: 'webtoonId'},
-                    {path: '#content/div.section_spot/div.comicinfo/div.thumb/a@href?no',
-                        assign: 'chapterId'},
-                    {path: '#content/div.section_spot/div.comicinfo/div.detail/h2',
-                        assign: 'webtoonTitle'},
-                    {path: '#content/div.section_spot/div.comicinfo/div.detail/h2/span.wrt_nm',
-                        assign: 'webtoonAuthor'},
-                    {path: '#content/div.section_spot/div.comicinfo/div.detail/p.txt', style: 'max-height: 50px; word-break: normal; word-wrap: normal;',
-                        assign: 'webtoonBlurb'},
-                    {path: '#content/div.section_spot/div.comicinfo/div.detail/ul.btn_group/li[]/a/', className: ' ',
-                        translate: [TEXT.fav.toUpperCase(), TEXT.first.toUpperCase(), TEXT.list.toUpperCase(), TEXT.artist.toUpperCase()]},
-                     //PAGEFLIP patch
-                    //{path: '#container/div/div.section_spot/div.comicinfo/div.thmb', className: 'thumb'}, //already fixed by naver
-                    {path: '#container/div/div.section_spot/div.comicinfo/div.dsc', className: 'detail'},
-                    {path: '#container/div/div.section_spot/div.comicinfo/div.dsc/h2/em', tagName: 'span', className: 'wrt_nm'},
-                    //end pageflip
-                    {path: '#content/div.section_spot/div.tit_area/div.view/h3',
-                        assign: 'chapterTitle'},
-                    {path: '#content/div.section_spot/div.tit_area/div.view/div.btn_area/span.pre/a',
-                        translate: TEXT.prev.toUpperCase()},
-                    {path: '#content/div.section_spot/div.tit_area/div.view/div.btn_area/span.next/a',
-                        translate: TEXT.next.toUpperCase()},
-                    {path: '#content/div.section_spot/div.tit_area/div.vote_lst/dl.rt/dt', style: 'padding: 3px 7px 3px 0px; text-align: right; width: 75px;',
-                        translate: TEXT.published},
-                    {path: '#topTotalStarPoint/../-2/dt/', tagName: 'em', style: 'font-weight: bold;',
-                        translate: TEXT.adjectivize(TEXT.average, TEXT.rating).toUpperCase()},
-                    {path: '#topTotalStarPoint/span.pointTotalPerson/em/-',
-                        translate: '('},
-                    {path: '#topTotalStarPoint/span.pointTotalPerson/em/+',
-                        translate: ' ' + TEXT.votes +')'},
-                    {path: '#topStarLabel/', tagName: 'em', style: 'font-weight: bold;',
-                        translate: TEXT.capitalize(TEXT.rate)},
-                    {path: '#topStarSelectbox/a/span',
-                        translate: TEXT.submit},
-                    {path: '#bottomTotalStarPoint/../-2/dt/', tagName: 'em', style: 'font-weight: bold;',
-                        translate: TEXT.adjectivize(TEXT.average, TEXT.rating).toUpperCase()},
-                    {path: '#bottomTotalStarPoint/span.pointTotalPerson/em/-',
-                        translate: '('},
-                    {path: '#bottomTotalStarPoint/span.pointTotalPerson/em/+',
-                        translate: ' ' + TEXT.votes +')'},
-                    {path: '#bottomStarLabel/', tagName: 'em', style: 'font-weight: bold;',
-                        translate: TEXT.capitalize(TEXT.rate)},
-                    {path: '#bottomStarSelectbox/a/span',
-                        translate: TEXT.submit},
-                    {path: '#prev_page',
-                        assign: 'startingImage'}, //PageFlip
-                    {path: 'img[]#content_image_0',
-                        assign: 'imageList', innerPath: {style: 'margin-left: auto; margin-right: auto; margin-bottom: 0px;'}},
-                    {path: '#au_pageflip/div.flip-page_container/div[]/div.img/img', observe: '#prev_page',
-                        assign: 'imageList', innerPath: {style: '', keepOriginal: true}},
-                    {path: '#comic_move/div[]', observe: '#comic_move',
-                        assign: 'chapterList', innerPath: {chapterId: 'a@href?no', chapterTitle: 'a/span.subj'}},
-                    {path: '#comicRemocon/div.h_area/strong', style: 'background: none; text-indent: 0px; width: auto;',
-                        translate: TEXT.capitalize(TEXT.remote)},
-                    {path: '#goButton/span', className: ' ', style: 'margin: 0; color: black;',
-                        translate: TEXT.go + '!'},
-                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.btn_up', style: 'width: 30px;',
-                        translate: TEXT.top},
-                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.btn_down', style: 'width: 30px;',
-                        translate: TEXT.bottom},
-                    {path: '#comicRemocon/div.remote_cont/div.pg_area2/a.btn_lst', style: 'width: 20px;',
-                        translate: TEXT.list},
-                    {path: '#comicRemocon/div.remote_cont/a.tit',
-                        assign: 'webtoonTitle'},
-                    {path: '#btnRemoteConOnOff/', observe: '#btnRemoteConOnOff',
-                        translate: TEXT.capitalize(TEXT.remote) + ' '},
-                ],
-                css: [
-                    {selector: '.btn_group li .book_maker, .btn_group li .first, .btn_group li .lst, .btn_group li .other, .btn_group li .other2',
-                        style: 'background: #FCFCFC; border: 1px #CECECE solid; border-radius: 2px; height: 25px; text-align: center; line-height: 25px;'},
-                    {selector: '.btn_group li .book_maker span, .btn_group li .first span, .btn_group li .lst span, .btn_group li .other span, .btn_group li .other2 span',
-                        style: 'background: none !important; text-indent: 0px !important; margin: 0 !important;'},
-                    {selector: '.btn_group li .book_maker span::before',
-                        style: 'content: \'★ \'; color: #17ce29; text-shadow: 0 0 1px #16b225;'},
-                    {selector: '.remote_cont .pg_area a',
-                        style: 'background: none; border: 1px solid grey; border-radius: 2px; box-sizing: border-box;'},
-                    {selector: '.remote_cont .pg_area .btn_move',
-                        style: 'background: none; border: 1px solid grey; border-radius: 2px; box-sizing: border-box; text-indent: 0;'},
-                    {selector: '.remote_area .btn_bx.btn_remote',
-                        style: 'width: 68px;'},
-                    {selector: '.vote_lst .rt dd.date',
-                        style: 'padding: 3px 5px 0px 0px;'}
-                ]
-            },
-            {  route: '/index',
-                html: [
-                    {path: '#content/div.genreRecomBox/div.tab_gr/ul/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]},
-                    {path: '#content/div.genreRecomBox/h3/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.recommendations) + ' ' + TEXT.adverbize(TEXT.by, TEXT.genre)},
-                    {path: '#content/div.genreRecomBox/h3/a/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.verbalize(TEXT.view, TEXT.compoundize(TEXT.list, TEXT.genre)))},
-                    {path: '#content/div.genreRecomBox_area/h3/img', tagName: 'em',
-                        translate: TEXT.capitalize(TEXT.compoundize(TEXT.recommendations, TEXT.challenge))},
-                    {path: '#content/div.genreRecomBox_area/ul/li[]/h4/img', tagName: 'em',
-                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story)]},
-                    {path: '#content/div.genreRecomBox_area/ul/li[]/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div/+/div/h6/a@href?titleId', webtoonTitle: 'div/+/div/h6/a', webtoonAuthor: 'div/+/div/div/a', webtoonBlurb: 'div/+/div/div.summary'}},
-                    {path: 'li[]#genreRecommandLi_0', observe: '#genreRecommand', options: {attributes: true, attributeFilter: ['href'], subtree: true},
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div/+/div/h6/a@href?titleId', webtoonTitle: 'div/+/div/h6/a/strong/span', webtoonAuthor: 'div/+/div/span.user/a'}},
-                ],
-                css: [
-                    {selector: '.tab_gr li',
-                        style: 'background: none; display: block; box-sizing: border-box; margin-left: 0 !important; line-height: 34px; width: auto !important; border-top: 2px solid #848484; border-bottom: 1px solid #dbdbdb;'},
-                    {selector: '.tab_gr li:nth-child(-n+3)',
-                        style: 'background: #efefef;'},
-                    {selector: '#content .tab_gr li[class*="_on"]',
-                        style: 'background: #909090; border-top-width: 2px; border: 1px solid #545454;'},
-                    {selector: '#content .tab_gr li[class*="_on"] a',
-                        style: 'color: white; text-shadow: 0 0 1px black;'},
-                    {selector: '.tab_gr li a',
-                        style: 'height: 34px; padding: 0 4px 0 3px; line-height: 34px; font-weight: bold; text-decoration: none;'},
-                    {selector: '.tab_gr li:nth-child(-n+2) + li:not([class*="_on"]) a',
-                        style: 'border-left: 1px solid #ddd;'},
-                    {selector: '.tab_gr li + li:not([class*="_on"]) a',
-                        style: 'border-left: 1px solid #ededed;'},
-                    {selector: 'h3.titleMain',
-                        style: 'font-size: 1.3em;'},
-                    {selector: 'h3.titleMain a em',
-                        style: 'font-size: 0.7em; font-weight: normal; display: inline-block; margin-top: 8px;'},
-                    {selector: 'h3.titleMain a em::after',
-                        style: 'content: \'  ❱\'; font-size: 0.7em; color: grey;'},
-                    {selector: '.genreRecomInfo3 .summary, .genreRecomInfo3 .user',
-                        style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; width: 124px;'},
-                    {selector: '.genreRecomInfo2 h6 strong span',
-                        style: 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; width: 160px;'}
-                ]
-            }
-            ];
-        // ------------------ M.COMIC.NAVER.COM $m-naver
-        } else if(window.location.hostname == 'm.comic.naver.com') {
-            this.template = [
-            {  route: '/index',
-                html: [
-                    {path: '#ct/div.new_webtoon/div/p.tit',
-                        translate: TEXT.capitalize(TEXT.compoundize(TEXT.monthly, TEXT._new)) + ' '},
-                    {path: '#newTitle', observe: '#newTitle',
-                        translate: TEXT.pick},
-                    {path: 'div[]#newWebtoon/ul/li[]', observe: '#newTitle',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@onclick?0', webtoonTitle: 'a/p/strong', webtoonAuthor: 'a/p/span'}}, //translation refresh?
-                    {path: '#ct/div.votetop/h3/p',
-                        translate: 'Increasingly popular TOP 10'}, //translation missing
-                    {path: '#newWeb',
-                        translate: TEXT.capitalize(TEXT.webtoon)},
-                    {path: '#newBest',
-                        translate: TEXT.capitalize(TEXT.challenge)},
-                    {path: 'div[]#realtime/ul/li[]', observe: '#realtime', options: {attributes: true},
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/p/span/span|div/a/p/span/span', webtoonAuthor: 'div/a/div/p/span.sub_info|div/a/p/span.sub_info'}},
-                    {path: '#ageTab/li[]/a/strong',
-                        translate: ['♂', '♀', '♂', '♀','♂', '♀']},
-                    {path: '#ageTab/li[]/a/span/em/+',
-                        translate: ['+', '+', '+', '+','+', '+']},
-                    {path: '#ageTab/-2/h3/p',
-                        translate: TEXT.compoundize(TEXT.adjectivize(TEXT.capitalize(TEXT.top), TEXT.capitalize(TEXT.pick)), TEXT.capitalize(TEXT.age) + '/' + TEXT.capitalize(TEXT.sex))},
-                    {path: 'div[]#recommend/ul/li[]', observe: '#recommend',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/p/span/span|div/a/p/span/span', webtoonAuthor: 'div/a/div/p/span.sub_info|div/a/p/span.sub_info'}},
-                    {path: '#ct/div.u_ft/div/div/a/span/+',
-                        translate: TEXT.top.toUpperCase()}
-                ]
-            },
-            {  route: '/(index|(webtoon|bestChallenge)/(list|genre|weekday))',
-                html: [
-                    {path: 'header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; z-index: 40; fill: white;',
-                        assign: 'menu'},
-                    {path: 'div.lnb/ul/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.index), TEXT.capitalize(TEXT.webtoons), TEXT.capitalize(TEXT.challenges), TEXT.capitalize(TEXT.store)]},
-            ]},
-            {  route: '/(webtoon|bestChallenge)/(genre|weekday)',
-                html: [
-                    {path: '#form/ul.sort/li[]/input/+',
-                        translate: [TEXT.adverbize(TEXT.by, TEXT.visits), TEXT.adverbize(TEXT.by, TEXT.update), TEXT.adverbize(TEXT.by, TEXT.rating), TEXT.adverbize(TEXT.by, TEXT.title)]},
-                    {path: '#pageList/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div/a@onclick?0', webtoonTitle: 'div/a/div/h4/span/span', webtoonAuthor: 'div/a/div/p'}},
-                    {path: '#ct/div.u_ft/div/div/a/span/+',
-                        translate: TEXT.top.toUpperCase()}
-            ]},
-            {  route: '/(webtoon|bestChallenge)/list',
-                html: [
-                    {path: '#form/div/div/dl/dt/+/dd/span/+/span/a@href?titleId',
-                        assign: 'webtoonId'},
-                    {path: '#form/div/div/dl/dt/span/strong',
-                        assign: 'webtoonTitle'},
-                    {path: '#form/div/div/dl/dt/+/dd/span/span',
-                        assign: 'webtoonAuthor'},
-                    {path: '#form/div/div/dl/dt/+/dd/span/+/span/a',
-                        translate: TEXT.first.toUpperCase()},
-                    {path: '#ct/+/div.u_ft/div/div/a/span/+',
-                        translate: TEXT.top.toUpperCase()},
-                    {path: '#pageList/li[]',
-                        assign: 'chapterList', innerPath: {chapterId: 'div/a@href?no', chapterTitle: 'div/a/div/p/span/span/'}}
-            ]},
-            {  route: '/webtoon/detail',
-                html: [
-                    {path: '#fixedHeader/div.lnb_sub/ul/li[]/a',
-                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.complete]}
-            ]},
-            {  route: '/webtoon/(list|weekday)',
-                html: [
-                    {path: 'div.lnb_sub/ul/li[]/a',
-                        translate: [TEXT.mon, TEXT.tue, TEXT.wed, TEXT.thu, TEXT.fri, TEXT.sat, TEXT.sun, TEXT.complete]}
-            ]},
-            {  route: '/bestChallenge/(list|genre|detail)',
-                html: [
-                    {path: '#genreTab/ul/li[]/a',
-                        translate: [TEXT.capitalize(TEXT._all), TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]}
-            ]},
-            {  route: '/webtoon/genre',
-                html: [
-                    {path: '#genreTab/ul/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.episode), TEXT.capitalize(TEXT.omnibus), TEXT.capitalize(TEXT.story),TEXT.daily, TEXT.humour, TEXT.fantasy, TEXT.action, TEXT.drama, TEXT.romance, TEXT.sliceOfLife, TEXT.thriller, TEXT.historical, TEXT.sport]}
-            ]},
-            {  route: '/(webtoon|bestChallenge)/detail',
-                html: [
-                    {path: '#fixedHeader/header/a/+', tagName: 'div', style: 'position: absolute; top: 9px; left: 72px; width: 54px; height: 27px; cursor: pointer; border-radius: 2px; z-index: 40; fill: white;',
-                        assign: 'menu'},
-                    {path: '#fixedHeader/div.lnb/ul/li[]/a',
-                        translate: [TEXT.capitalize(TEXT.index), TEXT.capitalize(TEXT.webtoons), TEXT.capitalize(TEXT.challenges), TEXT.capitalize(TEXT.store)]},
-                    {path: '#fixedHeader/div.chh/h1/span',
-                        assign: 'chapterTitle'},
-                    {path: '#fixedHeader/div.chh/div.pl/a/span',
-                        translate: TEXT.list.toUpperCase()},
-                    {path: '#fixedHeader/div.chh/div.pr/a',
-                        translate: '★ ' + TEXT.fav.toUpperCase()},
-                    {path: '#toon_0@src?path-2',
-                        assign: 'chapterId'},
-                    {path: '#toon_0@src?path-3',
-                        assign: 'webtoonId'},
-                    {path: 'li[]/p/img#toon_0',
-                        assign: 'imageList', innerPath: {style: 'margin-top: 0px; position: absolute; top: 0; left: 0;', keepOriginal: true}},
-                    {path: '#starDiv/h3',
-                        translate: TEXT.adjectivize(TEXT.average, TEXT.rating).toUpperCase()},
-                    {path: '#starscoreCount/em/+',
-                        translate: ' ' + TEXT.voters},
-                    {path: '#starToggleButton',
-                        translate: TEXT.capitalize(TEXT.rate)},
-                    {path: '#toonLayer/+/div.cmt/div.wr/h3/span',
-                        assign: 'webtoonAuthor'},
-                    {path: '#toonLayer/+/div.cmt/div.wr/h3/span/+', tagName: 'span', style: 'font-weight: normal;',
-                        translate: ' - ' + TEXT.shortPossessivize(TEXT.comment, TEXT.author)},
-                    {path: '#spiLayer1/+/div/p/a/span.pv',
-                        translate: TEXT.prev.toUpperCase()},
-                    {path: '#spiLayer1/+/div/p/a/span.nx',
-                        translate: TEXT.next.toUpperCase()},
-                    {path: '#spiLayer1/+/div/p/a/+/a/span.nx',
-                        translate: TEXT.next.toUpperCase()},
-                    {path: '#spiLayer1/+/div/p/~a',
-                        translate: TEXT.list.toUpperCase()},
-                    {path: '#ct/div.u_ft/div/div/a/span/+',
-                        translate: TEXT.top.toUpperCase()},
-                ],
-                css: [
-                    {selector: '.toon_view_lst li p',
-                        style: 'overflow: hidden; position: relative;'},
-                    {selector: 'img[style*="none"] + .toonreader_overlay', //memory release (?)
-                        style: 'display: none;'}
-                ]
-            }
-            ];
-        // ------------------ WWW.COMICO.JP $comico
-        } else if(window.location.hostname == 'www.comico.jp') {
-            this.template = [
-            {  route: '$',
-                html: [
-                 ]
-            },
-            {  route: '/(articleList|detail)',
-                html: [
-                    {path: 'header/div/h1/+', tagName: 'div', style: 'float: left; margin: 5px 1em; width: 33px; height: 33px; cursor: pointer; fill: #ff4005;',
-                        assign: 'menu'}
-                ],
-                css: [
-                    {selector: '.m-btn-favorite01.o-replacement, .m-btn-story-one01.o-replacement, .m-btn-select02.o-replacement, .m-btn-summary.o-replacement',
-                        style: 'background-image: none; background: white; background: linear-gradient(to bottom, white, #f8f8f8); border-radius: 3px; font-weight: bold; font-size: 1em; line-height: 27px; font-family: inherit; color: #111; border: 1px solid #e5e5e5; text-align: center;'},
-                    {selector: '.m-btn-favorite01.o-replacement::before',
-                        style: 'content: \'★ \'; color: #ffa41d; text-shadow: 0 0 1px black;'},
-                ]
-            },
-            {  route: '/articleList',
-                html: [
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/h1',
-                        assign: 'webtoonTitle'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/div/div/+/div',
-                        translate: 'Author'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/div/div/+/div/+/div',
-                        assign: 'webtoonAuthor'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/p', style: 'display: block; word-break: keep-all;',
-                        assign: 'webtoonBlurb'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/span',
-                        translate: 'Favourite'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/+/li/a',
-                        translate: 'Start'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/+/li/a@href?titleNo',
-                        assign: 'webtoonId'},
-                    {path: '#main/div.m-col-one01/div/div/div/section/~div/ul/li/+/li/+/li/a',
-                        translate: 'Artist\'s webtoons'},
-                    {path: '#main/div.m-col-one01/div/div/div/table/thead/tr/th[]',
-                        translate: ['Title', 'Rating', 'Date']},
-                    {path: '#main/div.m-col-one01/div/div/div/table/tbody/tr[]/td',
-                        assign: 'chapterList', innerPath: {chapterId: 'a@href?articleNo', chapterTitle: 'a/span'}},
-                    {path: '#_rankingTab/header/h1/a/strong',
-                        translate: 'Official'},
-                    {path: '#_rankingTab/header/h1/a/strong/+',
-                        translate: ' ranking'},
-                    {path: '#_rankingTab/div/select/option[]',
-                        translate: ['All ages', 'Teens', 'Twenties', 'Thirties']},
-                    {path: '#_rankingTab/ul/li[]/a',
-                        translate: ['♂', '♀']},
-                    {path: '#_rankingTab/div/+/div/div.viewport/div/ul[]/li[]/section',
-                        assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?titleNo', webtoonTitle: 'div/+/div/h1/a', webtoonAuthor: 'div/+/div/p/a'}},
-                    {path: '#_rankingTab/+/section/header/h1/a/strong',
-                        translate: 'Official'},
-                    {path: '#_rankingTab/+/section/header/h1/a/strong/+',
-                        translate: ' ranking'},
-                    {path: '#_rankingTab/+/section/div/div.viewport/div/ul/li[]/section',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?titleNo', webtoonTitle: 'div/+/div/h1/a', webtoonAuthor: 'div/+/div/p/a'}},
-                    
-                ]
-            },
-            {  route: '/detail',
-                html: [
-                    {path: '#_comicTop/-3/div/~div/h1',
-                        assign: 'webtoonTitle'},
-                    {path: '#_comicTop/-3/div/~div/div/div/+/div',
-                        translate: 'Author'},
-                    {path: '#_comicTop/-3/div/~div/div/div/+/div/+/div',
-                        assign: 'webtoonAuthor'},
-                    {path: '#_comicTop/-3/div/~div/p',
-                        assign: 'webtoonBlurb'},
-                    {path: '#_comicTop/-3/div/~div/ul/li/span',
-                        translate: 'Favourite'},
-                    {path: '#_comicTop/-3/div/~div/ul/li/+/li/a',
-                        translate: 'First'},
-                    {path: '#_comicTop/-3/div/~div/ul/li/+/li/a@href?titleNo',
-                        assign: 'webtoonId'},
-                    {path: '#_comicTop/-3/div/~div/ul/~li/-2/li/a',
-                        translate: 'List'},
-                    {path: '#_comicTop/-3/div/~div/ul/~li/a',
-                        translate: 'Artist\'s webtoons'},
-                    {path: '#_comicTop/div/h1',
-                        assign: 'chapterTitle'},
-                    {path: '#_comicTop/div/ul/li/a.m-btn-prev-story01',
-                        translate: '‹ Previous'},
-                    {path: '#_comicTop/div/ul/~li/a.m-btn-next-story01',
-                        translate: 'Next ›'},
-                    {path: '#_comicTop/div/+/div/div/p/~span',
-                        translate: 'like'},
-                    {path: '#_comicTop/div/+/div/div/+/div/dl/dt',
-                        translate: 'Date: '},
-                    {path: '#_comicTop/div._comico_view_area/p/img@src?path-2',
-                        assign: 'chapterId'},
-                    {path: '#_comicTop/div._comico_view_area/p/img[]', innerPath: {style: 'margin: 0 auto;'},
-                        assign: 'imageList'},
-                ],
-                css: [
-                    {selector: '.m-btn-prev-story01.o-replacement,  .m-btn-next-story01.o-replacement',
-                       style: 'background-image: none; background: white; background: linear-gradient(to bottom, white, #f8f8f8); border-radius: 3px; font-size: 1em; line-height: 27px; font-family: inherit; color: #111; border: 1px solid #e5e5e5; text-align: center;'},
-                    {selector: '.m-block05 .block05__area03',
-                       style: 'width: 120px; text-align: right;'},
-                       
-                ]
-            }
-            ];
-        // ------------------ COMICO.TOAST.COM $toast
-        } else if(window.location.hostname == 'comico.toast.com') {
-            this.template = [
-            {  route: '$',
-                html: [
-                 ]
-            },
-            {  route: '/titles/[0-9]+/?$',
-                html: [
-                    {path: '#header/div.navwrap/h1/+', tagName: 'div', style: 'position: absolute; left: 135px; top: 20px; width: 35px; height: 35px; cursor: pointer; fill: #ff4005;',
-                        assign: 'menu'},
-                    {path: '#header/div.navwrap/ul/li[]/a',
-                        translate: ['Schedule', 'Genre', 'Rank']},
-                    {path: '#container/div/div/div.con/h2',
-                        assign: 'webtoonTitle'},
-                    {path: '#container/div/div/div.con/dl/dd.name/span',
-                        assign: 'webtoonAuthor'},
-                    {path: '#container/div/div/div.con/dl/dd.dsc',
-                        assign: 'webtoonBlurb'},
-                    {path: '#container/div/div/div.con/div/a/span.aln',
-                        translate: 'FAV'},
-                    {path: '#container/div/div/div.con/div/a/+/a',
-                        translate: 'START'},
-                    {path: '#container/div/div/div.con/div/a/+/a@href?0',
-                        assign: 'webtoonId'},
-                    /*{path: '#container/div/div/+/div/div/p/',
-                        translate: 'Scheduled on '},
-                    {path: '#container/div/div/+/div/div/p/strong',
-                        translate: 'DAY'},
-                    {path: '#container/div/div/+/div/div/p/strong/+',
-                        translate: '.'},*/
-                    {path: '#container/div/div/+/div/ul/li[]', observe: '#container/div/div/+/div/ul',
-                        assign: 'chapterList', innerPath: {chapterId: 'a@href?-1', chapterTitle: 'a/span.tit'}},
-                ],
-                css: [
-                    {selector: '.tabnav',
-                        style: 'left: 175px;'}
-                ]
-            },
-            {  route: '/titles/[0-9]+/chapters/[0-9]+$',
-                html: [
-                    {path: '#wrap/div/div/h1/a/+/a/+', tagName: 'div', style: 'position: absolute; left: 145px; height: 35px; top: 10px; width: 35px; fill: #ff4005; cursor: pointer;',
-                        assign: 'menu'},
-                    {path: '#wrap/div/div/h1/a/+/a@href?0',
-                        assign: 'webtoonId'},
-                    {path: '#wrap/div/div/+/div/div.viewpage/p/input@value',
-                        assign: 'chapterId'},
-                    {path: '#wrap/div/div/h1/a/+/a', style: 'margin-left: 20px; max-width: 250px;',
-                        assign: 'webtoonTitle'},
-                    {path: '#wrap/div/div/div/button/span',
-                        assign: 'chapterTitle'},
-                    {path: '#container/div/div/div/div._remocon/a[]/span/+',
-                        translate: ['top', 'bottom']},
-                    {path: '#container/div/div/div/div._remocon/div/button/span',
-                        translate: 'autoscroll'},
-                       {path: '#container/div/div/div/div._view/img[]',
-                        assign: 'imageList'},
-                ]
-            }
-            ];
-        // ----------------- DAUM $daum
-        } else if(window.location.hostname == 'webtoon.daum.net' || window.location.hostname == 'cartoon.media.daum.net') {
-            this.template = [
-            {  route: '/(webtoon|league)/viewer/',
-                html: [
-                    {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo',
-                        translate: TEXT.capitalize(TEXT.home)},
-                    {path: 'div.wrap/div.head_bar/div/h1/a.cartoon_logo/+', tagName: 'div', style: 'float:left; width: 1em; height: 1em; vertical-align: middle; margin: 8px 0 0 -16px; cursor: pointer; fill: white;',
-                        assign: 'menu'},
-                    {path: 'div.wrap/div.head_bar/div/div.episode_info/a',
-                        assign: 'webtoonTitle'},
-                    {path: 'div.wrap/div.head_bar/div/div.episode_info/a@href?path-1',
-                        assign: 'webtoonId'},
-                    {path: 'div.wrap/div.head_bar/div/div.episode_info/a.writer',
-                        assign: 'webtoonAuthor'},
-                    {path: 'div.wrap/div.head_bar/div/div.others/span.move_control/span.txt',
-                        translate: TEXT.capitalize(TEXT.navbar)},
-                    {path: 'div.wrap/div.head_bar/div/div.others/span.move_control/span.episode_title',
-                        assign: 'chapterTitle'},
-                    {path: 'head/~meta@content?0',
-                        assign: 'chapterId'},
-                    {path: 'div.wrap/div.main_content/div/div/img[]',
-                        assign: 'imageList', innerPath: {style: 'display: block; margin-left: auto; margin-right: auto;'}},
-                    {path: 'div.wrap/div.main_content/div.controler/div/div/div/a/',
-                        translate: TEXT.autoscroll},
-                    {path: '#scrollWrap/ul/li[]',
-                        assign: 'chapterList', innerPath: {chapterTitle: 'a.title/', chapterId: 'a.title@href?0'}}
-                ],
-                css: [
-                    {selector: '.head_bar h1 a.cartoon_logo',
-                        style: 'text-indent: 5px; background: #4c4c4c; color: #EBEDEE; font: bold 12px/43px dotum;'},
-                    {selector: '.main_content .img_list br',
-                        style: 'display: none;'},
-                    {selector: '.others > a:not([class="close"])',
-                        style: 'text-indent: 23px;'},
-                    {selector: '.others a em',
-                        style: 'background: #4c4c4c; text-indent: 5px; display: inline-block; height: 43px; font: normal 12px/43px dotum; color: #EBEDEE;'},
-                    {selector: '.controler .auto_scroll_wrap::before',
-                        style: 'content: "top"; position: absolute; display: block; width: 50px; line-height: 21px; margin: -44px 0 0 25px; background: white; text-align: center; color: #6A6E7E;'},
-                    {selector: '.controler .auto_scroll_wrap::after',
-                        style: 'content: "bottom"; display: block;  width: 50px; line-height: 21px;  margin: -56px 0 0 25px; background: white; text-align: center; color: #6A6E7E;'},
-                    {selector: '.episode_list .title',
-                        style: 'overflow: hidden; white-space: nowrap; text-overflow: ellipsis;'},
-                ]
-            },
-            {  route: '/webtoon/viewer/',
-                html: [
-                    {path: 'div.wrap/div.head_bar/div/div.others/a[]/', tagName: 'em',
-                        translate: ['Home', 'WeekList', 'Bkmrk']}
-                ]
-            },
-            {  route: '/league/viewer/',
-                html: [
-                    {path: 'div.wrap/div.head_bar/div/div.others/a[]/', tagName: 'em',
-                        translate: ['League ', 'Bkmrk']}
-                ]
-            },
-            {  route: '/($|(webtoon|league)/($|week|view/|select))',
-                html: [
-                    {path: '#daumHead/h1/+', tagName: 'div', style: 'float:left; margin-left: 15px; width: 35px; height: 35px; vertical-align: middle; cursor: pointer; fill: red;',
-                        assign: 'menu'},
-                    {path: '#gnbCartoon/li[]/a/span.ir_wa/',
-                        translate: ['Home', 'Webtoon', 'League', 'Market', 'Event', 'Forum', 'MY']},
-                    {path: '#gnbCartoon/li/+/li/ul/li[]/a/',
-                        translate: ['Webtoon', 'Weekday', 'Search']},
-                    {path: '#gnbCartoon/li/+/li/+/li/ul/li[]/a/',
-                        translate: ['League', 'Exhibitions']}
-                ],
-                css: [
-                    {selector: '.gnb_cartoon .link_gnb',
-                        style: 'width: auto !important; background: none; line-height: 43px;'},
-                    {selector: '.gnb_cartoon .on .link_gnb',
-                        style: 'color: red; text-decoration: underline;'},
-                    {selector: '.gnb_cartoon :not(.on) .link_gnb:hover .ir_wa',
-                        style: 'color: white; background: red;'},
-                    {selector: '.gnb_cartoon :not(.on) .link_gnb:hover',
-                        style: 'text-decoration: none'},
-                    {selector: '.gnb_cartoon .ir_wa',
-                        style: 'display: inline; padding: 4px; border-radius: 3px; width: auto; vertical-align: middle; height: 1em;'},
-                    {selector: '#daumGnb',
-                        style: 'background: none; line-height: 43px;'},
-                    {selector: '#daumGnb li',
-                        style: 'float: none; width: auto; display: inline-block;'},
-                    {selector: '#daumGnb .gnb_cartoon',
-                        style: 'float: none; width: 100%;'},
-                    {selector: '#minidaumRank',
-                        style: 'margin-left: 45px;'}
-                ]
-            },
-            {  route: '/webtoon/$',
-                html: [
-                    {path: '#mCenter/div.area_body/h4',
-                        translate: 'Schedule'},
-                    {path: '#mCenter/div.area_body/ul.CT_ZONE_TAB/li[]/a/',
-                        translate: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
-                    {path: '#mCenter/div.area_body/ul.CT_ZONE_WEEK/li[]', observe: '#mCenter/div.area_body/ul.CT_ZONE_WEEK',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'span.info/a@href?path-1', webtoonTitle: 'span.info/a', webtoonAuthor: 'span.info/span'}},
-                    {path: '#mCenter/div.area_body/div.CT_ZONE_NEW/ul/li[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'div.list_txt_btn/em/a@href?path-1', webtoonTitle: 'div.list_txt_btn/em/a', webtoonAuthor: 'div.list_txt_btn/span.txt_nick', webtoonBlurb: 'div.list_txt_btn/p'}},
-                    {path: '#mCenter/div.area_body/div.CT_ZONE_NEW/h4',
-                        translate: 'Try out a new!'}
-                ],
-                css: [
-                    {selector: '.tab_webtoon_timeline',
-                        style: 'background: none;'},
-                    {selector: '.tab_webtoon_timeline li',
-                        style: 'position: static !important; margin-right: -1px; box-sizing: border-box; background: #858585; border: 1px solid #626262;'},
-                    {selector: '.tab_webtoon_timeline li a',
-                        style: 'text-indent: 0px; display: inline-block; width: 100%; text-align: center; line-height: 26px; font-weight: bold; color: white; text-shadow: 0px 0px 1px black;'},
-                    {selector: '.tab_webtoon_timeline li.on',
-                        style: 'background: white; border-bottom: 0px; border-color: #5c5c5c;'},
-                    {selector: '.tab_webtoon_timeline li.on a',
-                        style: 'color: inherit; text-shadow: none;'},
-                    {selector: '.tab_webtoon_timeline li a:hover',
-                        style: 'text-decoration: none;'},
-                    {selector: '.tab_webtoon_timeline .week1',
-                        style: 'border-radius: 5px 0 0 0;'},
-                    {selector: '.tab_webtoon_timeline .week7',
-                        style: 'border-radius: 0 5px 0 0;'},
-                    {selector: '.webtoon .area_body .list_thumb_text_btn .list_txt_btn p',
-                        style: 'height: 2em; overflow: hidden; margin-bottom: 7px;'},
-                    {selector: '.webtoon .area_body .list_thumb_text_btn .list_txt_btn em',
-                        style: 'height: 1em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;'},
-                    {selector: '.type_title_webtoon',
-                        style: 'text-indent: 0px; background: none; font-weight: bold; font-size: 1.2em; height: 1.2em;'},
-                    {selector: '.list_img_info_h .info .subject, .list_img_info_h .info .writer',
-                        style: 'overflow: hidden; text-overflow: ellipsis; height: 31px;'}
-                ]
-            },
-            {  route: '/league/$',
-                html: [
-                    {path: '#mCenter/div/div.list_wrap/ul/li[]',  wait: true, observe: '#mCenter/div', options: {childList: true, subtree: true},
-                        assign: 'webtoonList', innerPath: {webtoonId: 'em.tit/a@href?path-1|div.list_txt_btn/em/a@href?path-1', webtoonTitle: 'em.tit/a|div.list_txt_btn/em/a', webtoonAuthor: 'dl/dd|div.list_txt_btn/dl/dd'}},
-                    {path: '#mRight/div.wrap_ranking/ul/li[]', wait: true,
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/span.cont/em', webtoonAuthor: 'a/span.cont/span.name'}},
-                    {path: '#mRight/div.wrap_sec/ul/li[]', wait: true, observe: '#mRight/div.wrap_sec/ul',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/span.cont/em', webtoonAuthor: 'a/span.cont/span.name'}},
-                    {path: '#mCenter/div/div.wrap_worklist/ul/li[]/a', wait: true, observe: '#mCenter/div', options: {childList: true, subtree: true},
-                        translate: ['Latest', 'Popular', 'All', 'Promoted', 'Comments']},
-                    {path: '#mCenter/div/div.wrap_worklist/ul/li.all_on/..2/+/div.wrap_submenu/a[]', wait: true, observe: '#mCenter/div', options: {childList: true, subtree: true},
-                        translate: ['All', 'Story', 'Omnibus', 'Episode']},
-                    {path: '#mCenter/div/div.wrap_worklist/ul/li.latest_on/..2/+/div.wrap_submenu/a[]', wait: true, observe: '#mCenter/div', options: {childList: true, subtree: true},
-                        translate: ['All', '1st,2nd League']},
-                    {path: '#mCenter/div/div.wrap_worklist/ul/li.popular_on/..2/+/div.wrap_submenu/a[]', wait: true, observe: '#mCenter/div', options: {childList: true, subtree: true},
-                        translate: ['Daily', 'Weekly']}
-                ],
-                css: [
-                    {selector: '.tit .link_txt, .league .list_award .list_txt_btn em',
-                        style: 'white-space: nowrap; width: 152px; display: block; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.list_wrap .list_update .cont .desc:first-of-type',
-                        style: 'width: 152px;'},
-                    {selector: '.wrap_ranking .cont em, .wrap_ranking .cont span.name',
-                        style: 'white-space: nowrap; width: 115px; display: inline-block; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.wrap_ranking.wrap_sec .cont em, .wrap_ranking.wrap_sec .cont span.name',
-                        style: 'width: 145px;'},
-                    {selector: '.wrap_ranking .score',
-                        style: 'overflow: hidden; text-indent: -20px;'},
-                    {selector: '.league .list_update .desc',
-                        style: 'text-overflow: ellipsis;'},
-                    {selector: '.list_popular .nickname, .league .list_update .base:first-of-type',
-                        style: 'display: none;'},
-                    {selector: '.wrap_worklist .tab_worklist, #mCenter .wrap_worklist .tab_worklist li',
-                        style: 'background: none;'},
-                    {selector: '#mCenter .wrap_worklist .tab_worklist li a',
-                        style: 'text-indent: 0px; box-sizing: border-box; text-align: center; color: white; font-weight: bold; text-shadow: 0 0 1px black; background: #aaacb5; border-right: 0; border: 1px solid #646976; vertical-align: text-bottom; line-height: 24px;'},
-                    {selector: '#mCenter .wrap_worklist .tab_worklist li[class*="_on"] a',
-                        style: 'border-radius: 5px 5px 0 0; background: #e83a31; border: 1px solid #9c1b15; line-height: 31px;'},
-                    {selector: '#mCenter .wrap_worklist .tab_worklist li:first-of-type a',
-                        style: 'border-radius: 5px 0 0 0;'},
-                    {selector: '#mCenter .wrap_worklist .tab_worklist li:last-of-type a',
-                        style: 'border-radius: 0 5px 0 0; border: 1px solid #646976;'},
-                    {selector: '#mCenter .wrap_worklist .tab_worklist li[class*="_on"] + li a',
-                        style: 'border-left: 0;'}
-                ]
-            },
-            {  route: '/(webtoon/($|view/|week|select)|league/view)',
-                html: [
-                    {path: '#mRight/div.wrap_gradebest/h3',
-                        translate: 'Best ratings'},
-                    {path: '#mRight/div.wrap_gradebest/div/div[]/h4/a', wait: true,
-                        translate: ['ongoing', 'complete']},
-                    {path: '#mRight/div.wrap_gradebest/div/div[]/ol/li[]', wait: true,
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a'}},
-                    {path: '#mRight/div.wrap_newpoptoon/h3',
-                        translate: 'Latest top picks'},
-                    {path: '#mRight/div.wrap_newpoptoon/div/div[]/h4/a', wait: true, observe: '#mRight/div.wrap_newpoptoon/div.cont_newpoptoon', options: {childList: true, subtree: true},
-                        translate: ['daily', 'weekly']},
-                    {path: '#mRight/div.wrap_newpoptoon/div/div[]/ol/li[]', wait: true, observe: '#mRight/div.wrap_newpoptoon', options: {childList: true, subtree: true},
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a'}},
-                    {path: '#mCenter/div.area_body/div.btn_show_all/a',
-                        translate: 'Weekday'}
-                ],
-                css: [
-                    {selector: '.box_complete .list_complete li a, .box_series .list_series li a',
-                        style: 'overflow: hidden; width: 140px; text-overflow: ellipsis; white-space: nowrap;'},
-                    {selector: '.box_daily .list_daily li a, .box_weekly .list_weekly li a',
-                        style: 'overflow: hidden; width: 160px; text-overflow: ellipsis; white-space: nowrap;'},
-                    {selector: '.wrap_gradebest .cont_gradebest .tit_work a, .wrap_newpoptoon .cont_newpoptoon .tit_work a',
-                        style: 'text-indent: 0px;'},
-                    {selector: '.wrap_gradebest .cont_gradebest, .wrap_gradebest .cont_gradebest .on .tit_work, .wrap_newpoptoon .cont_newpoptoon, .wrap_newpoptoon .cont_newpoptoon .on .tit_work',
-                        style: 'background: none'},
-                    {selector: '.wrap_gradebest .cont_gradebest .tit_work a, .wrap_newpoptoon .cont_newpoptoon .tit_work a',
-                        style: 'text-indent: 0px; background: #858585; box-sizing: border-box; text-align: center; line-height: 26px; font-size: 12px; border-radius: 5px 0 0 0; border: 1px solid #626262; color: white; text-shadow: 0px 0px 1px black;'},
-                    {selector: '.wrap_gradebest .cont_gradebest .box_complete .tit_work a, .wrap_newpoptoon .cont_newpoptoon .box_weekly .tit_work a',
-                        style: 'border-radius: 0 5px 0 0;'},
-                    {selector: '.wrap_gradebest .on .tit_work .link_tab, .wrap_newpoptoon .on .tit_work .link_tab',
-                        style: 'background: white; color: black; text-shadow: none; border-bottom: 0px;'},
-                    {selector: '.right_wrap .tit_comm',
-                        style: 'background: none; text-indent: 0px; width: auto; height: auto;'}
-                ]
-            },
-            {  route: '/$',
-                html: [
-                    {path: '#mCenter/div.tmpListWrap/ul/li[]/a',
-                        translate: [ 'Episode', 'Omnibus', 'Story', 'School', 'Drama', 'Fantasy', 'Genuine', 'Comic', 'Action', 'Martial Arts', 'Horror'], wait: true, observe: '#mCenter/div.tmpListWrap'}, //need translation on refresh, or css translation.
-                    {path: '#mCenter/div.tmpListWrap/div.wrap_episode/ul/li[]', observe: '#mCenter/div.tmpListWrap', wait: true,
-                        assign: 'webtoonList', innerPath: {webtoonId: 'span.cont/strong/a@href?path-1', webtoonTitle: 'span.cont/strong/a', webtoonAuthor: 'span.cont/span.desc/a'}},
-                    {path: '#mRight/div.wrap_manseranking/div/div.box_webtoon/div/div[]/ol/li[]', wait: true, observe: '#mRight/div.wrap_manseranking/div',
-                        assign: 'webtoonList',  innerPath: {webtoonId: 'div.cont/strong/a@href?path-1', webtoonTitle: 'div.cont/strong/a', webtoonAuthor: 'div.cont/span.desc/a'}},
-                    {path: '#mRight/div.wrap_manseranking/h3',
-                        translate: 'Toon Ranking'},
-                    {path: '#mRight/div.wrap_manseranking/div/div[]/h4/a', wait: true, observe: '#mRight/div.wrap_manseranking/div',
-                        translate: ['webtoon', 'paytoon']},
-                    {path: '#mRight/div.wrap_manseranking/div/div/div/div[]/h5', observe: '#mRight/div.wrap_manseranking/div', wait: true,
-                        translate: ['Best ongoing webtoon', 'Popular webtoon', 'Best completed webtoon']},
-                    {path: '#mRight/div.wrap_manseranking/div/div/div/div[]/a', observe: '#mRight/div.wrap_manseranking/div', wait: true,
-                        translate: ['more', 'more', 'more']},
-                    {path: '#mRight/div.wrap_manseranking/div/div/div/div[]/ol/li/span/span.txt', observe: '#mRight/div.wrap_manseranking/div', wait: true,
-                        translate: ['rating', 'rating', 'rating']}
-                ],
-                css: [
-                    {selector: '.list_episode .tit, .list_episode .desc a, #mRight .cont_webtoon .tit a, #mRight .cont_webtoon .desc a',
-                        style: 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; width: 120px;'},
-                    {selector: '.link_tab',
-                        style: 'text-indent: 0px; background: #858585; box-sizing: border-box; text-align: center; line-height: 26px; font-size: 12px; border-radius: 5px 0 0 0; border: 1px solid #626262; color: white; text-shadow: 0px 0px 1px black;'},
-                    {selector: '.cont_manseranking div + div .link_tab',
-                        style: 'border-radius: 0 5px 0 0;'},
-                    {selector: '.on .link_tab',
-                        style: 'background: white; color: black; text-shadow: none; border-bottom: 0px;'},
-                    {selector: '.right_wrap .ico_comm',
-                        style: 'background: none; text-indent: 0px;'},
-                    {selector: '.right_wrap .ico_comm::after',
-                        style: 'content: \' ❱\'; color: red;'},
-                    {selector: '.cont_manseranking, .wrap_manseranking .tit_ranking, .cont_manseranking .on .tit_ranking', style: 'background: none;'},
-                    {selector: '.right_wrap .tit_comm',
-                        style: 'background: none; text-indent: 0px; width: 150px; height: auto;'},
-                    {selector: '.cartoonhome .tab_webtoon',
-                        style: 'background: none'},
-                    {selector: '.tab_webtoon .tab_link',
-                        style: 'text-indent: 0px; padding: 2px 7px 2px 6px; font-weight: bold; width: auto !important; background: #858585; box-sizing: border-box; text-align: center; line-height: 26px; font-size: 12px; border: 1px solid #626262; color: white; text-shadow: 0px 0px 1px black;'},
-                    {selector: '.tab_webtoon li:nth-child(-n+3):not([class*=" on"]) .tab_link',
-                        style: 'background: #707070;'},
-                    {selector: '.tab_webtoon .on .tab_link',
-                        style: 'background: white; color: black; text-shadow: none; border-bottom: 0px;' },
-                    {selector: '.tab_webtoon li + li',
-                        style: 'margin-left: -2px;'},
-                    {selector: '.tab_webtoon li:first-of-type .tab_link',
-                        style: 'border-radius: 5px 0 0 0;'},
-                    {selector: '.tab_webtoon li:last-of-type .tab_link',
-                        style: 'border-radius: 0 5px 0 0;'}
-                ]
-            },
-            {  route: '/webtoon/week',
-                html: [
-                    {path: '#mCenter/div.area_toonlist/div[]/div/h3',
-                        translate: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
-                    {path: '#mCenter/div.area_toonlist/div[]/div/ul/li[]',
-                        assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'p/a@href?path-1', webtoonTitle: 'p/a'}},
-                    {path: '#mCenter/div.area_title/h2', style: 'text-indent: 0px; font-size: 1.1em; line-height: 1.33em; background: none; width: 100%;',
-                        translate: 'Ongoing manwhas'}
-                    
-                ],
-                css: [
-                    {selector: '.list_episode .tit',
-                        style: 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.webtoon .area_toonlist .toonlist_day ul li a',
-                        style: 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                    {selector: '.webtoon .area_toonlist .toonlist_day h3',
-                        style: 'box-sizing: border-box; text-indent: 0px; line-height: 25px; font-size: 0.9em; text-align: center; color: white; text-shadow: 0 0 1px black; background: #acacac; border: 1px solid #696969; border-radius: 5px;'},
-                    {selector: '.webtoon .area_toonlist .toonlist_day.selected h3',
-                        style: 'background: #e83a31; border-color: #ad312d;'}
-                ]
-            },
-            {  route: '/webtoon/view/',
-                html: [
-                    {path: '#mCenter/div.area_toon_info/div.wrap_cont/div/div.scrap_html/div/div/a@href?path-1',
-                        assign: 'webtoonId'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_title/h3/img', tagName: 'span',
-                        assign: 'webtoonTitle'},
-                    {path: '#mCenter/ul.tab_webtoon_view/li[]/a',
-                        translate: ['Chapters', 'Work notes', 'Related pick']},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl.list_intro/dt',
-                        translate: 'Blurb'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl.list_intro/dd',
-                        assign: 'webtoonBlurb'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl.list_more_info/dt.tit_genre',
-                        translate: 'Genre'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl.list_more_info/dt.tit_grade',
-                        translate: 'Rating'},
-                ]
-            },
-            {  route: '/league/view/',
-                html: [
-                    {path: '#mCenter/div.area_toon_info/div.layer_pum/div.scrap_html/div/div/a@href?path-1',
-                        assign: 'webtoonId'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_title/h3', style: 'font: 14px/1.5 dotum,sans-serif; font-weight: 700;',
-                        translate: ' '},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_title/h3/span.repeat', className: ' ',
-                        assign: 'webtoonTitle'},
-                    {path: '#mCenter/ul.tab_webtoon_view/li[]/a',
-                        translate: ['Chapters', 'Related pick']},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl/dt',
-                        translate: 'Blurb'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl/dd',
-                        assign: 'webtoonBlurb'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl.info_recom/dt',
-                        translate: 'Links'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_more/dl.info_recom/+/dl/dt',
-                        translate: 'Votes'},
-                ]
-            },
-            {  route: '/(league|webtoon)/view/',
-                html: [
-                    {path: '#webtoonList/li[]', observe: '#webtoonList',
-                        assign: 'chapterList', innerPath: {chapterId: 'p/a@href?path-1', chapterTitle: 'p/a'}},
-                    {path: '#mCenter/div.area_toon_info/div.btns/button',
-                        translate: 'FIRST'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_cont/dl/dt',
-                        translate: 'Author'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_cont/dl/dd/a',
-                        assign: 'webtoonAuthor'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_cont/dl/+/dl/dt',
-                        translate: 'Status'},
-                    {path: '#mCenter/div.area_toon_info/div.wrap_cont/dl/+/dl/dd/button', style: 'text-indent: 0px; background: none;',
-                        translate: 'More ▾'},
-                ],
-                css: [
-                    {selector: '.btn_webtoon_first',
-                        style: 'background: #61636e; text-indent: 0px; color: white; text-shadow: 0 0 1px black; border: 1px solid #32353a; border-radius: 3px;'},
-                    {selector: '.league .wrap_list_toon .list_toon li p, .webtoon .wrap_list_toon .list_toon li p',
-                        style: 'white-space: nowrap; text-overflow: ellipsis; overflow: hidden;'},
-                    {selector: '#mCenter .tab_webtoon_view, #mCenter .tab_webtoon_view li',
-                        style: 'background: none; border-bottom: 1px solid lightgrey;'},
-                    {selector: '#mCenter .tab_webtoon_view li a',
-                        style: 'text-indent: 0px; height: 26px; margin-top: 5px; box-sizing: border-box; text-align: center; color: white; font-weight: bold; text-shadow: 0 0 1px black; background: #aaacb5; border-right: 0; border: 1px solid #646976; vertical-align: text-bottom; line-height: 24px;'},
-                    {selector: '#mCenter .tab_webtoon_view li[class*=" on"] a',
-                        style: 'border-radius: 5px 5px 0 0; height: 31px; margin-top: 0px; background: #e83a31; border: 1px solid #9c1b15; line-height: 31px;'},
-                    {selector: '#mCenter .tab_webtoon_view li:first-of-type a',
-                        style: 'border-radius: 5px 0 0 0;'},
-                    {selector: '#mCenter .tab_webtoon_view li:last-of-type a',
-                        style: 'border-radius: 0 5px 0 0; border: 1px solid #646976;'},
-                    {selector: '#mCenter .tab_webtoon_view li[class*=" on"] + li a',
-                        style: 'border-left: 0;'},
-                    {selector: '.wrap_title h3 span',
-                        style: 'width: 300px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'},
-                    {selector: '.webtoon .area_toon_info .desc_author, .league .area_toon_info .wrap_cont dd',
-                        style: 'width: 290px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'},
-                    {selector: '.webtoon .area_toon_info dt.type_title_info, .league .area_toon_info dt.type_title_info',
-                        style: 'background: none; text-indent: 0; color: grey; font-weight: bold;'},
-                ]
-            },
-            {  route: '/webtoon/select',
-                html: [
-                    {path: '#mCenter/div.box_choice_setting/strong[]', observe: '#mCenter/div.box_choice_setting', options: {childList: true, subtree: true},
-                        translate: ['Form', 'Genre', 'Rating', 'Work', 'Etc.']},
-                    {path: '#mCenter/div.box_choice_setting/ul[]/li[]/a', observe: '#mCenter/div.box_choice_setting', options: {childList: true, subtree: true},
-                        translate: [  'Any', 'Story', 'Omnibus', 'Episode', 
-                                    'School', 'Comic', 'Drama', 'Action', 'Fantasy', 'Fighting', 'Genuine', 'Horror',
-                                    '9.7+', '9.5~9.7', '9.0~9.5', '9.0-',
-                                    'Ongoing', 'Complete',
-                                    'Popular works', 'Short vowel ', 'Imaging work ', 'Contest Winners']},
-                    {path: '#mCenter/div.wrap_choicelist/ul/li[]', observe: '#mCenter/div.wrap_choicelist/ul', wait: true,
-                        assign: 'webtoonList', innerPath: {webtoonId: 'span.cont/strong/a@href?path-1', webtoonTitle: 'span.cont/strong/a', webtoonAuthor: 'span.cont/span.desc/a'}}
-                ],
-                css: [
-                    {selector: '.box_choice_setting strong',
-                        style: 'width: 108px; left: 1px; padding-left: 20px;'},
-                    {selector: '.box_choice_setting .list_form + strong',
-                        style: 'width: 159px; left: 130px;'},
-                    {selector: '.box_choice_setting .list_type + strong',
-                        style: 'left: 310px;'},
-                    {selector: '.box_choice_setting .list_grade + strong',
-                        style: 'left: 439px;'},
-                    {selector: '.box_choice_setting .list_work + strong',
-                        style: 'left: 569px;'},
-                    {selector: '.box_choice_setting',
-                        style: 'position: relative;'},
-                    {selector: '.box_choice_setting .screen_out',
-                        style: 'color: white; font-weight: bold; text-shadow: 0 0 1px black; background: #ababab; height: 32px; font-size: 12px; top: 4px; line-height: 32px; display: inline-block;'},
-                    {selector: '.wrap_choicelist .list_choice .tit, .wrap_choicelist .list_choice .link_txt',
-                        style: 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; width: 120px;'}
-                ]
-            }
-            ];
-        // ----------------- NATE $nate
-        } else if(window.location.hostname == 'comics.nate.com') {
-            this.template = [
-                {  route: '',
-                    html: [
-                        {path: 'div.wrap/div.header/h2/a',
-                            translate: 'Home'},
-                        {path: 'div.wrap/div.header/h2/+', tagName: 'div', style: 'position: absolute; top: 37px; left: 136px; display: inline-block; background: #4c4c4c; width: 24px; height: 12px; cursor: pointer;',
-                            assign: 'menu'},
-                        {path: '#searchWrap/+/div.secNaviWrap/ul/li[]/a',
-                           translate: ['Home', 'Webtoons', 'Free', 'Genre', 'Premium', 'Smart', 'Magazine', 'MY', 'Novels']},
-                    ],
-                    css: [
-                        {selector: '.header #searchWrap',
-                            style: 'position: absolute; left: 167px;'},
-                        {selector: '.header .secNaviWrap li a',
-                            style: 'background: none; width: auto !important; font-weight: bolder; color: black; font-size: 14px; text-indent: 0px;'},
-                        {selector: '.header .secNaviWrap li a.on',
-                            style: 'color: #ff4200;'}
-                    ]
-                },
-                {  route: '/main',
-                    html: [
-                        {path: '#webToonChoice/div/a[]/span',
-                            translate: ['Sneak pick', 'Marathon', 'Sweets', 'Very sicko']},
-                        {path: '#webToonChoice/div.wtc_toonImgWrap/div[]/a[]',
-                            assign: 'webtoonList', weekday: true, innerPath: {webtoonId: '-/a@href?btno', webtoonTitle: 'img@alt'}},
-                        {path: '#wtc_slide_items/a[]',
-                           translate: ['Titles', 'Don\'t', 'Appear', 'Right away']},
-                        {path: '#mainTodayToon/h4/span',
-                           translate: 'Pick of the day'},
-                        {path: '#mainTodayToon/a',
-                           translate: 'more'},
-                        {path: '#mtt_dayTab/a[]/span',
-                           translate: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']},
-                        {path: '#mainTodayToon/ul[]/li[]',
-                            assign: 'webtoonList', weekday: true, innerPath: {webtoonId: 'a@href?btno', webtoonTitle: 'a/span.mtt_txtLine/span.mtt_title', webtoonAuthor: 'a/span.mtt_txtLine/span.mtt_author'}},
-                        {path: '#mainTodayToon/+/div.main1stToon/h4/span',
-                            translate: 'Most commented on'},
-                        {path: '#mainTodayToon/+/div.main1stToon/a',
-                            translate: 'more'},
-                        {path: '#mainTodayToon/+/div.main1stToon/div/a[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: '-/+/a@href?btno', webtoonTitle: 'span.m1t_txt/span.m1t_title', webtoonAuthor: 'span.m1t_txt/span.m1t_author'}}
-                    ],
-                    css: [
-                        {selector: '#webToonChoice .wtc_nav a',
-                            style: 'background: #7e7e7e; box-sizing: border-box; color: white; margin: 0 6px; height: 35px; display: block; width: 108px;'},
-                        {selector: '#webToonChoice .wtc_nav a .a11y',
-                            style: 'position: static; display: block; font-weight: bolder; width: auto; height: 32px; line-height: 30px; text-align: center; text-indent: 0px; font-size: 14px; font-family: Verdana;'},
-                        {selector: '#webToonChoice.on1 #wtc_m1 span, #webToonChoice.on2 #wtc_m2 span, #webToonChoice.on3 #wtc_m3 span, #webToonChoice.on4 #wtc_m4 span',
-                            style: 'text-shadow: 2px 2px black; border-top: 1px solid #7b6800; border-left: 6px solid #ffdd2f; background: #4f421b; z-index: 2;'},
-                        {selector: '#webToonChoice.on1 #wtc_m1, #webToonChoice.on2 #wtc_m2, #webToonChoice.on3 #wtc_m3, #webToonChoice.on4 #wtc_m4',
-                            style: 'margin: 0px; width: 120px; border: 1px solid black; margin-bottom: -2px;'},
-                        {selector: '#webToonChoice.on2 #wtc_m2 span',
-                            style: 'background: #335565; border-top-color: #588295;'},
-                        {selector: '#webToonChoice.on3 #wtc_m3 span',
-                            style: 'background: #783848; border-top-color: #9c5466;'},
-                        {selector: '#webToonChoice.on4 #wtc_m4 span',
-                            style: 'background: #5c6f38; border-top-color: #5c6f38;'},
-                        {selector: '#webToonChoice .wtc_nav a + a',
-                            style: 'border-top: 1px solid #5d5d5d;'},
-                        {selector: '#webToonChoice.on1 .wtc_nav a:not(#wtc_m1)::before, #webToonChoice.on2 .wtc_nav a:not(#wtc_m2)::before, #webToonChoice.on3 .wtc_nav a:not(#wtc_m3)::before, #webToonChoice.on4 .wtc_nav a:not(#wtc_m4)::before',
-                            style: 'content: ""; display: block; line-height:1px; border-top:1px solid #a4a4a4;'},
-                        {selector: '#mtt_dayTab u, .main1stToon h4',
-                            style: 'background: none;'},
-                        {selector: '.mtt_dayTab .a11y',
-                            style: 'position: static; font-family: Verdana; width: auto; height: auto; color: #898989; margin-top: 17px; font-size: 12px; font-weight: bold; text-align: center; text-indent: 0px;'},
-                        {selector: '.is_mon .mtt_mon .a11y, .is_tue .mtt_tue .a11y, .is_wed .mtt_wed .a11y, .is_thu .mtt_thu .a11y, .is_fri .mtt_fri .a11y, .is_sat .mtt_sat .a11y, .is_sun .mtt_sun .a11y',
-                            style: 'font-style: italic; color: black; font-size: 14px; margin: 14px 8px 0 0;'},
-                        {selector: '.main1stToon h4 .a11y',
-                            style: 'position: static; display: inline-block; width: auto; height: auto; font-size: 12px; font-family: Verdana; text-indent: 0px; background: #ffff5d; color: black;'},
-                        {selector: '.main1stToon h4 .a11y::after',
-                            style: 'background: white; content: " Webtoons";'}
-                    ]
-                },
-                {  route: '/webtoon',
-                    html: [
-                        {path: 'div.wrap/div.genre/dl/dd[]/a',
-                            translate: ['Weekday', 'Ranking', 'Completed']}
-                    ]
-                },
-                {  route: '/webtoon/(index|ranking|finish)',
-                    html: [
-                        {path: 'div.wrap/div.container/div.toonTop/div/a[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: '-/+/a@href?btno', webtoonTitle: 'span.toc_detail/span.toc_title', webtoonAuthor: 'span.toc_detail/span.toc_author', webtoonBlurb: 'span.toc_detail/span.toc_txt'}}
-                    ],
-                    css: [
-                        {selector: '.todayOneCut .toc_title, .todayOneCut .toc_txt',
-                            style: 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                        {selector: '.todayOneCut .toc_txt',
-                            style: 'height: 11px;'},
-                        {selector: '.toonTop h3',
-                            style: 'background: none; width: auto;'},
-                        {selector: '.toonTop h3 .a11y',
-                            style: 'font-family: Verdana; padding-bottom: 2px; position: static; width: auto; height: auto; font-size: 14px; text-indent: 0px; color: white; text-shadow: 2px 2px 1px black, 0 0 2px black; font-weight: bolder;'},
-                        {selector: '.toonTop h3 .a11y::after',
-                            style: 'color: #ffe007;'},
-                    ]
-                },
-                {  route: '/webtoon/index',
-                    html: [
-                        {path: 'div.wrap/div.container/div.toonTop/div/h3/span',
-                            translate: 'Today\'s'},
-                        {path: '#webToonList/div.wtl_tabs/div.wtl_tabs_left/a[]/span',
-                            translate: ['Weekday', 'Genre']},
-                        {path: '#webToonList/div.wtl_table_day/table/thead/tr/th[]/span',
-                            translate: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
-                        {path: '#webToonList/div.wtl_table_genre/table/thead/tr/th[]/span',
-                            translate: ['Comic', 'Daily', 'Love', 'Drama', 'Action/Thriller', 'Fantasy', 'Sport']},
-                    ],
-                    css: [
-                        {selector: '.toonTop h3 .a11y::after',
-                            style: 'content: " Selection";'},
-                        {selector: '.wtl_tabs_left a',
-                            style: 'font-size: 14px; position: relative; height: 18px !important;'},
-                        {selector: '.wtl_tabs_left a span',
-                            style: 'border-top: 2px solid white;'},
-                        {selector: '.wtl_tabs_left a:first-of-type span::after',
-                            style: 'position: absolute; right: -10px; top: 2px; background-color: grey; display: block; width: 1px; content: " ";'},
-                        {selector: '.wtl_tabs_left a + a',
-                            style: 'margin-left: 20px;'},
-                        {selector: '.is_day .wtl_tabs_left a.btn_sort_day span, .is_genre .wtl_tabs_left a.btn_sort_genre span',
-                            style: 'color: red; border-top: 2px solid red; font-weight: bold;'},
-                        {selector: '.wtl_table th',
-                            style: 'background: none;'},
-                        {selector: '.wtl_table th .a11y',
-                            style: 'position: static; overflow: visible; width: auto; height: auto; font-size: inherit; text-indent: 0px; text-align: center;'},
-                        {selector: '.wtl_table th + th .a11y',
-                            style: 'border-left: 1px grey solid;'},
-                        {selector: '.is_mon .wtl_mon .a11y, .is_tue .wtl_tue .a11y, .is_wed .wtl_wed .a11y, .is_thu .wtl_thu .a11y, .is_fri .wtl_fri .a11y, .is_sat .wtl_sat .a11y, .is_sun .wtl_sun .a11y',
-                            style: 'height: 38px; margin-top: 1px; border: 2px solid black; border-radius: 5px 5px 0 0; line-height: 38px; background: linear-gradient(#fe8280, #fb4341, #f22d2a, #e6201d, #d51310) red; color: white; text-shadow: 0px 0px 1px black, 1px 1px 2px black;'},
-                        {selector: '.is_mon .wtl_mon + th .a11y, .is_tue .wtl_tue + th .a11y, .is_wed .wtl_wed + th .a11y, .is_thu .wtl_thu + th .a11y, .is_fri .wtl_fri + th .a11y, .is_sat .wtl_sat + th .a11y, .is_sun .wtl_sun + th .a11y',
-                            style: 'border-left: none;'},
-                    ]
-                },
-                {  route: '/webtoon/(index|finish)',
-                    html: [
-                        {path: '#webToonList/div.wtl_tabs/div.wtl_tabs_right/a[]/span',
-                            translate: ['sort by views', 'sort by comments']},
-                        {path: '#webToonList/div.wtl_tabs/+/div/table/tbody/tr/td[]/a[]',
-                            assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'span/../a@href?btno', webtoonTitle: 'span.wtl_title', webtoonAuthor: 'span.wtl_author'}}
-                    ],
-                    css: [
-                        {selector: '#webToonList .wtl_title, #webToonList .wtl_author',
-                            style: 'padding: 0 4px;'},
-                        {selector: '.wtl_tabs a',
-                            style: 'background: none !important; position: relative; text-decoration: none; width: auto !important;'},
-                        {selector: '.wtl_tabs a .a11y',
-                            style: 'position: static; width: auto; height: auto; font-size: inherit; text-indent: 0px;'},
-                        {selector: '.wtl_tabs_right a:first-of-type span::after',
-                            style: 'position: absolute; right: -10px; top: 0; background-color: grey; display: block; width: 1px; content: " ";'},
-                        {selector: '.wtl_tabs_right a + a',
-                            style: 'margin-left: 20px;'},
-                        {selector: '.is_view .wtl_tabs_right a.btn_sort_view span, .is_reply .wtl_tabs_right a.btn_sort_reply span',
-                            style: 'font-weight: bold; color: black;'},
-                        {selector: '.wtl_tabs_right',
-                            style: 'margin-top: 3px;'},
-                    ]
-                },
-                {  route: '/webtoon/ranking',
-                    html: [
-                        {path: 'div.wrap/div.container/div.toonTop/div/h3/span',
-                            translate: 'Weekly'},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/h3',
-                            translate: 'Daily ranking'},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/div.dr_tabs/div.dr_tabs_right/a[]/span',
-                            translate: ['sort by views', 'sort by comments']},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/ul/li[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: 'a@href?btno', webtoonTitle: 'a/span.dr_txtLine/span.dr_title', webtoonAuthor: 'a/span.dr_txtLine/span.dr_author'}},
-                    ],
-                    css: [
-                        {selector: '.toonTop h3 .a11y::after',
-                            style: 'content: " ranking";'},
-                        {selector: '.dr_title',
-                            style: 'width: 370px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'},
-                        {selector: '.dr_tabs a',
-                            style: 'background: none !important; position: relative; text-decoration: none; width: auto !important;'},
-                        {selector: '.dr_tabs a .a11y',
-                            style: 'position: static; width: auto; height: auto; font-size: inherit; text-indent: 0px;'},
-                        {selector: '.dr_tabs_right a:first-of-type span::after',
-                            style: 'position: absolute; right: -10px; top: 0; background-color: grey; display: block; width: 1px; content: " ";'},
-                        {selector: '.dr_tabs_right a + a',
-                            style: 'margin-left: 20px;'},
-                        {selector: '.is_view .dr_tabs_right a.btn_sort_view span, .is_reply .dr_tabs_right a.btn_sort_reply span',
-                            style: 'font-weight: bold; color: black;'},
-                        {selector: '.dr_tabs_left',
-                            style: 'display: none;'},
-                        {selector: '.dailyRank h3',
-                            style: 'display: inline-block; width: 49%; position: static; height: auto; font-size: 14px; color: black; text-indent: 0px;'},
-                        {selector: '.dr_tabs',
-                            style: 'display: inline-block; width: 49%;'},
-                    ]
-                },
-                {  route: '/webtoon/finish',
-                    html: [
-                        {path: 'div.wrap/div.container/div.toonTop/div/h3/span',
-                            translate: 'Recommended'},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/h3',
-                            translate: 'Completed webtoons'},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/div.dr_tabs/div.dr_tabs_right/a[]/span',
-                            translate: ['sort by views', 'sort by comments']},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/ul/li[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: 'a@href?btno', webtoonTitle: 'a/span.dr_txtLine/span.dr_title', webtoonAuthor: 'a/span.dr_txtLine/span.dr_author'}},
-                        {path: '#webToonList/div.wtl_table_genre/table/thead/tr/th[]/span',
-                            translate: ['Comic', 'Daily', 'Love', 'Drama', 'Action/Thriller', 'Fantasy', 'Sport']}
-                    ],
-                    css: [
-                        {selector: '.toonTop h3 .a11y::after',
-                            style: 'content: " picks";'},
-                        {selector: '.wtl_tabs_left',
-                            style: 'display: none;'},
-                        {selector: '#webToonList h3',
-                            style: 'display: inline-block; width: 49%; position: static; height: auto; font-size: 14px; color: black; text-indent: 0px;'},
-                        {selector: '.wtl_tabs',
-                            style: 'display: inline-block; width: 49%;'},
-                        {selector: '.wtl_table th',
-                            style: 'background: none;'},
-                        {selector: '.wtl_table th .a11y',
-                            style: 'position: static; overflow: visible; width: auto; color: #444; height: auto; font-size: inherit; text-indent: 0px; text-align: center;'},
-                        {selector: '.wtl_table th + th .a11y',
-                            style: 'border-left: 1px grey solid;'}
-                    ]
-                },
-                {  route: '/webtoon/list',
-                    html: [
-                        {path: 'div.wrap/div.container/div.toonTop/div.toonInfo/div.tif_infoBox/div.tif_author',
-                            assign: 'webtoonAuthor'},
-                        {path: 'div.wrap/div.container/div.toonTop/div.toonInfo/div.tif_infoBox/div.tif_txt',
-                            assign: 'webtoonBlurb'},
-                        {path: 'div.wrap/div.container/div.toonTop/div.toonInfo/div.tif_infoBox/div.tif_btnArea/a@href?btno',
-                            assign: 'webtoonId'},
-                        {path: 'div.wrap/div.container/div.toonTop/div.toonInfo/div.tif_infoBox/div.tif_btnArea/a[]/span',
-                            translate: ['FIRST', 'FAV', 'AUTHOR', 'SIMILAR']},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/div/div/h3/',
-                            assign: 'webtoonTitle'},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/div/div/h3/i',
-                            translate: ' '},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/ul/li[]',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@href?bsno', chapterTitle: 'a/span.tel_txtLine/span.tel_linkLine/span.tel_title'}},
-                        {path: '#tif_customSelect/ul/li[]',
-                            assign: 'webtoonList', innerPath: {webtoonId: 'a@href?btno', webtoonTitle: 'a'}},
-                        {path: 'div.wrap/div.container/div.toonBottom/div/div/div.tel_tabs_right/a[]/span',
-                            translate: ['sort by date', 'sort by comments']}
-                    ],
-                    css: [
-                        {selector: '.tel_tabs a',
-                            style: 'background: none !important; position: relative; text-decoration: none; width: auto !important;'},
-                        {selector: '.tel_tabs a .a11y',
-                            style: 'position: static; width: auto; height: auto; font-size: inherit; text-indent: 0px;'},
-                        {selector: '.tel_tabs_right a:first-of-type span::after',
-                            style: 'position: absolute; right: -10px; top: 0; background-color: grey; display: block; width: 1px; content: " ";'},
-                        {selector: '.tel_tabs_right a + a',
-                            style: 'margin-left: 20px;'},
-                        {selector: '.is_latest .tel_tabs_right a.btn_sort_latest span, .is_reply .tel_tabs_right a.btn_sort_reply span',
-                            style: 'font-weight: bold; color: black;'},
-                        {selector: '.tel_tabs_right',
-                            style: 'margin-top: 3px;'},
-                    ]
-                },
-                {  route: '/webtoon/detail',
-                    html: [
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/h3/a@href?btno',
-                            assign: 'webtoonId'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/h3/a',
-                            assign: 'webtoonTitle'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/div.tvi_author/a',
-                            assign: 'webtoonAuthor'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/div.tvi_episodeInfo/span.tvi_episodeTitle',
-                            assign: 'chapterTitle'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/div.tvi_btnArea/a.btn_bookmark@onclick?1',
-                            assign: 'chapterId'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/div.tvi_btnArea/div[]/',
-                            translate: ['votes ', 'comments ']},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonViewInfo/div.tvi_infoBox/div.tvi_btnArea/a[]/span',
-                            translate: ['FIRST', 'FAV']},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonNavTop/div/a.btn_prev',
-                            translate: 'PREV'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonNavTop/div/a.btn_next',
-                            translate: 'NEXT'},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonNavTop/div/div',
-                            translate: ' '},
-                        {path: 'div.wrap/div.toonViewContainer/div.toonView/img[]',
-                            assign: 'imageList', innerPath: {style: 'display: block; margin-left:auto; margin-right: auto; text-align: center;'}},
-                        {path: '#btn_tntSelect',
-                            translate: 'Chapter list'},
-                        {path: '#tnt_customSelect/ul/li[]',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@href?bsno', chapterTitle: 'a'}},
-                        {path: '#tnb_carouselWrap/ul/li[]',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@href?bsno', chapterTitle: 'a/span.tnb_episodeNum'}}
-                    ],
-                    css: [
-                        {selector: '.tnb_episodeNum',
-                            style: 'width: 169px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'},
-                    ]
-                },
-                {  route: '/webtoon/(detail|list)',
-                    css: [
-                        {selector: '.btn_1stEpisode .a11y, .btn_bookmark .a11y, .btn_zzim .a11y, .btn_authorOther .a11y, .btn_genreSame .a11y',
-                            style: 'position: static; display: inline-block; margin: auto; width: auto; height: auto; font-size: 13px; text-align: center; text-indent: 0px; font-weight: bold; color: #363636; background: white; margin-top: 4px;'},
-                        {selector: '.btn_1stEpisode, .btn_bookmark, .btn_zzim, .btn_authorOther, .btn_genreSame',
-                            style: 'text-align: center;'},
-                        {selector: '.btn_1stEpisode .a11y',
-                            style: 'background: #ed1c24; color: white; text-shadow: 1px 1px black, 1px 0px black, 1px -1px black, 0px 1px black, 0px -1px black, -1px 1px black, -1px 0px black, -1px -1px black; padding: 1px 10px;'},
-                        {selector: '.btn_authorOther .a11y, .btn_genreSame .a11y',
-                            style: 'padding: 1px 20px;'},
-                        {selector: '.btn_zzim .a11y',
-                            style: 'margin-left: 18px; padding: 1px 0px;'},
-                        {selector: '.btn_bookmark .a11y',
-                            style: 'margin-left: 18px; padding: 1px 10px;'},
-                    ]
+var overtooning = {
+    //lang: http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry ?
+    storage: {                  //default values (overwritten by localStorage if exists)
+        feed: [{url: 'http://otoon-api.bumblebits.net', name: 'Default feed', lang: ['en', 'es'], lastUpdate: 0}],
+        webtoon: [],
+        config: {
+            debug: 3,               //verbosity of logs.
+            active: true,           //stops the execution of this script early, if false (only display menu).
+            lang: [],             //bypass the browser's user agent language, if needed.
+            memoryLimit: 0,       //limit for the low memory devices (in megapixels).
+            lazyLoading: true,         //images are to be loaded in order.
+        },
+        text: {
+            _SETTING:           'Setting',
+            _SETTING_LAZYLOAD:  'Ordered loading',
+            _SETTING_LAZYLOAD_I:'Force the original images to be loaded one by one (automatically set to yes if you set a memory limit below).',
+            _SETTING_MEMORY:    'Memory Limit (MPixel)',
+            _SETTING_MEMORY_I:  'Limit the maximum memory available for image processing (low power devices). In megapixels (width/1024 x height/1024).',
+            _SETTING_LANG:      'Force language preferences',
+            _SETTING_LANG_I:    'Only use if the autodetect language feature is not enough. Currently available values are: ',
+            _SETTING_DISABLE:   'Disable Overtooning on this website',
+            _SETTING_RESET:     'Reset Overtooning data',
+            _SETTING_RESET_I:   'If nothing works, maybe this will help.',
+            _FEED:              'Feed',
+            _FEED_TEMPLATE:     'Set this feed as layout translator.',
+            _FEED_REFRESH:      'Refresh the data served by this feed.',
+            _WEBTOON:           'Webtoon',
+            _WEBTOON_FEED:      'Set this feed as primary choice for this webtoon.',
+            _LOG:               'Log',
+            _TEMPLATE:          'Layout',
+            _TEMPLATE_I:        'Edit the layout (advanced users).',
+            _ROUGH:             'Rough',
+            _ROUGH_I:           'Placeholder for the Rough Translation functionality (not available yet).',
+            _YES:               'Yes',
+            _NO:                'No',
+            _APPLY:             'Apply'
+        },
+        template: [],
+        
+        exec: function(func, property) {
+            if(property) {
+                if(!property.join) {
+                    property = [property];
                 }
-            ];
-        // ----------------- OLLEH $olleh
-        } else if(window.location.hostname == 'webtoon.olleh.com') {
-            this.template = [
-                {   route: '/web/(main|times_)',
-                    html: [
-                        {path: '#header/div.top/h1/+',  tagName: 'h3', style: 'float:left; display: inline-block; fill: black; width: 35px; height: 35px; margin: 12px 1em 0 0; cursor: pointer;',
-                            assign: 'menu'},
-                        {path: '#header/div.top/div.h_gnb/ul/li[]/a',
-                            translate: ['Webtoon', 'Novel', 'Ranking', 'Berry Farm']},
-                        {path: '#header/div.top/div.h_gnb/ul/li[]/ul/li[]/a',
-                            translate: ['Grid', 'Genre', 'Grid', 'Genre', 'Comics', 'YOYOZINE', 'Events']},
-                        {path: '#header/div.top/div.h_gnb/ul/~li/ul/li[]/a',
-                            translate: ['Favs', 'Lists', 'Berry', 'Account']},
-                        {path: '#header/div.top/div.h_rt/div.h_etc/ul/li[]/a',
-                            translate: ['로그인', '회원가입'], by: ['Login', 'Sign Up']},
-                        {path: '#query@placeholder',
-                            translate: 'Search'}
-                    ]
-                },
-                {   route: '/web/main',
-                    html: [
-                        {path: '#container/div.main_cont_wp/div/div.main_today_menu/a[]/span',
-                            translate: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
-                        {path: '#container/div.main_cont_wp/div/div.main_today_menu/+/div[]/div.main_tit/span',
-                            translate: ['Today\'s Webtoons', 'Today\'s Novels']},
-                        {path: '#container/div.main_cont_wp/div/div.main_today_menu/+/div[]/div.main_tit/div.right/a',
-                            translate: ['더보기'], by: ['View More']},
-                        {path: '#container/div.main_cont_wp/div/div.main_alarm/+/div[]/div.main_tit/span',
-                            translate: ['Our recommendations', 'Featured Today']},
-                        {path: '#container/div.main_cont_wp/div/div.main_alarm/+/div[]/div.main_tit/div.right/span/a[]',
-                            translate: ['웹툰', '소설'], by: ['Webtoon', 'Novel']},
-                    ]
-                },
-                {   route: '/web/times_(list|nlist)',
-                    html: [
-                        {path: '#container/div/div/div.work_listRt_text/span/span/div/span',
-                            assign: 'webtoonTitle'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/span',
-                            translate: 'Author'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.artist/~span/a',
-                            assign: 'webtoonAuthor'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span',
-                            translate: 'Genre'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span/+/span',
-                            translate: ['드라마', '판타지'], by: ['Drama', 'Fantasy']},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span.week/-2/span',
-                            translate: 'Schedule'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span/span.genre/span.week',
-                            translate: ['월', '화', '수', '목', '금', '토', '일'], by: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']},
-                        {path: '#container/div/div/div.work_listRt_text/span/span.bt_wr/span',
-                            assign: 'webtoonBlurb'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span.bt_wr/div/a@href?webtoonseq',
-                            assign: 'webtoonId'},
-                        {path: '#container/div/div/div.work_listRt_text/span/span.bt_wr/div/a[]',
-                            translate: ['First', 'Fav', 'Yoyozine']},
-                        {path: '#container/div.work_listBt_wp/div.work_alarm/span/span.ic_alarm',
-                            translate: 'Notice'},
-                        {path: '#container/div.work_listBt_wp/div.work_alarm/span/span.tx_alarm',
-                            assign: 'webtoonNote'},
-                        {path: '#listCnt/-',
-                            translate: ' '},
-                        {path: '#listCnt/+',
-                            translate: ' chapters'},
-                        {path: '#container/div.work_listBt_wp/div.work_list_area/div.sub_tit/div/a[]',
-                            translate: ['Desc', 'Asc']},
-                        {path: '#container/div.work_listBt_wp/div.work_list_area/div.main_thum_list/ul/li[]', observe: '#container/div.work_listBt_wp/div.work_list_area/div.main_thum_list/ul',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@onclick?0', chapterTitle: 'a/span/div/span/'}},
-                    ],
-                    css: [
-                        {selector: '.ic_alarm',
-                            style: 'width: auto; border-radius: 25%; border: 1px solid #888; background: none; padding: 3px; color: #888; height: auto; line-height: 1em;'},
-                    ]
-                },
-                {   route: '/web/times_view',
-                    html: [
-                        {path: '#header/div.toon_view_topArea/div/div.left/a',
-                            translate: 'List'},
-                        {path: '#header/div.toon_view_topArea/div/div.left/a@href?webtoonseq',
-                            assign: 'webtoonId'},
-                        {path: '#header/div.toon_view_topArea/div/div.center/div/span',
-                            assign: 'chapterTitle'},
-                        {path: 'head/meta/+/meta/+/meta@content?timesseq',
-                            assign: 'chapterId'},
-                        {path: '#header/div.toon_view_topArea/div.listSlide/div/div/ul/li[]', observe: '#header/div.toon_view_topArea/div.listSlide/div',
-                            assign: 'chapterList', innerPath: {chapterId: 'a@href?timesseq', chapterTitle: 'a/span.txt'}},
-                        {path: '#container/div/div/div/p[]/img', observe: '#container/div/div/div',
-                            assign: 'imageList', innerPath: {style: 'margin: auto;', src: 'data-src'}},
-                        {path: 'div.extend_remocon_wrap/div.etc_bnr/span.name',
-                            assign: 'webtoonTitle'},
-                        {path: 'div.extend_remocon_wrap/div.etc_bnr/span.artist',
-                            assign: 'webtoonAuthor'},
-                        {path: 'div.extend_remocon_wrap/div.etc_bnr/span.genre',
-                            translate: ['드라마', '판타지'], by: ['Drama', 'Fantasy']},
-                        {path: 'div.extend_remocon_wrap/a[]',
-                            translate: ['prev', 'next']},
-                        {path: 'div.extend_remocon_wrap/div.dir_etc_bt/div/a[]',
-                            translate: ['top', 'bottom']},
-                        {path: 'div.mini_remocon_wrap/div/div.v_bt/a[]',
-                            translate: ['top', 'bottom']},
-                    ]
-                },
-                
-            ];
-        // ----------------- TTALE $ttale
-        } else if(window.location.hostname == 'ttale') {
-            this.template = [];
-        // ----------------- FOXTOON $foxtoon
-        } else if (window.location.hostname == 'www.foxtoon.com') {
-            this.template = [
-            {  route: '(/?|/comic/[A-Za-z0-9_\-]+)$',
-                html: [
-                    {path: '#header/div/div.menu/ul/li/+', tagName: 'li', style: 'width: 4em; height: 4em; fill: #F49800; margin: 2em 0.5em 0;',
-                        assign: 'menu'},
-                    {path: '#header/div/div.menu/ul/li/a/div',
-                        translate: 'Challenges'},
-                ],
-                css: [
-                    {selector: '#header .menu li.menu_comic_challenge',
-                        style: 'background: inherit; line-height: 124px; font-size: 1.5em; text-shadow: 0 0 1px; text-align: center;'},
-                    {selector: '#header .menu li.menu_comic_challenge:hover, #header .menu li.menu_comic_challenge.on',
-                        style: 'background: #f8b551;'},
-                    {selector: '.menu_comic_challenge a',
-                        style: 'color: #eb6100;'},
-                    {selector: '.menu_comic_challenge a:hover, .menu_comic_challenge.on a',
-                        style: 'color: white;'},
-                    {selector: '#header .menu li',
-                        style: 'text-indent: 0px;'},
-                ]
-            },
-            {  route: '/?$',
-                html: [
-                    {path: '#contents/div/div/ul/li.t2x2[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div/span/', webtoonAuthor: 'a/div/span/em'}},
-                    {path: '#contents/div/div/ul/li.t2x1[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div/span/', webtoonAuthor: 'a/div/span/em'}},
-                    {path: '#contents/div/div/ul/li.t1x1[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div/span/', webtoonAuthor: 'a/div/span/em'}},
-                    {path: '#comic_schedule_table/div/ul/li[]/a',
-                        translate: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']},
-                    {path: '#comic_schedule_table/div/ul/+/ul[]/li[]',
-                        assign: 'webtoonList', weekdayList: true, innerPath: {webtoonId: 'a@href?path-1', webtoonTitle: 'a/div.des/div.title', webtoonAuthor: 'a/div.des/div.author'}},
-                ]
-            },
-            {  route: '/comic/[A-Za-z0-9_\-]+$',
-                html: [
-                    {path: '#contents/div/div/div/div.des/h3/',
-                        assign: 'webtoonTitle'},
-                    {path: '#contents/div/div/div/div.des/h3/em',
-                        assign: 'webtoonAuthor'},
-                    {path: '#contents/div/div/div/div.des/p',
-                        assign: 'webtoonBlurb'},
-                    {path: '#contents/div/div/div/div.des/div.function/a@href?path-2',
-                        assign: 'webtoonId'},
-                    {path: '#contents/div/div/div/div.des/div.function/a/input@value',
-                        translate: 'FIRST'},
-                    {path: '#contents/div/div/~div/ul/li[]',
-                        assign: 'chapterList', innerPath: {chapterId: 'a@href?path-1', chapterTitle: 'a/div.title'}},
-                ]
-            },
-            {  route: '/comic/[A-Za-z0-9_\-]+/[0-9]+',
-                html: [
-                    {path: '#nav_wrap/div/h1/+', tagName: 'div', style: 'cursor: pointer; width: 40px; height: 40px; float: left; fill: #F49800; margin: 10px 0.5em 0;',
-                        assign: 'menu'},
-                    {path: '#nav_wrap/div/div.title/a/h2', style: 'display: inline;',
-                        assign: 'webtoonTitle'},
-                    {path: '#nav_wrap/div/div.title/a/h2/+', tagName: 'span', style: 'line-height: 60px; font-size: 16px; margin-left: 5px;',
-                        assign: 'chapterTitle'},
-                    {path: '#comic_view_area/div.navigation/div.nav_wrapper/ul/li.on/a@href?path-2',
-                        assign: 'webtoonId'},
-                    {path: '#comic_view_area/div.navigation/div.nav_wrapper/ul/li.on/a@href?path-1',
-                        assign: 'chapterId'},
-                    {path: '#nav_bottom/div/div/a.prev/span/+',
-                        translate: 'Previous'},
-                    {path: '#nav_bottom/div/div/a.next/span/-',
-                        translate: 'Next'},
-                    {path: '#comic_view_area/div.navigation/div.nav_wrapper/ul/li[]',
-                        assign: 'chapterList', innerPath: {chapterId: 'a@href?path-1', chapterTitle: 'a/p'}},
-                    {path: '#comic_view_area/div.comic_view/img[]',
-                        assign: 'imageList', innerPath: {style: 'margin: 0px auto;'}},
-                ],
-                css: [
-                    {selector: '.nav .title',
-                        style: 'width: 800px; left: 131px;'},
-                ]
+                for(var i = property.length -1; i > -1; i--) {
+                    this[func](property[i]);
+                }
+            } else {
+                this.exec(func, ['feed', 'webtoon', 'config', 'text', 'template']);
             }
-            ];
-        // ----------------- KAKAO $kakao
-        } else if (window.location.hostname == 'page.kakao.com') {
-            this.template = [
-            {  route: '/(main|today)',
-                html: [
-                    {path: '#header/h1/span/+', tagName: 'span', style: 'cursor: pointer; display: inline-block; vertical-align: top; width: 1em; height: 1em; fill: white; margin: -0.15em 0 0 0.5em;',
-                        assign: 'menu'},
-                    {path: '#gnb/span[]/i',
-                        translate: ['Cartoon', 'Novel', 'Book', 'Lifestyle']},
-                    {path: '#navBox/div[]/span',
-                        translate: ['웹툰', '기다리면무료', '순정', '소년', '액션/무협', '웹소설', '판타지', '무협', '로맨스'], by: ['Webtoon', 'Free', 'Girlish', 'Boyish', 'Action/Martial', 'Fiction', 'Fantasy', 'Martial Arts', 'Romance']},
-                    {path : '#recom/div.btnWrp/div[]/span',
-                        translate: ['추천', '인기'], by: ['Recommended', 'Popular']},
-                    {path : '#rank/div.btnWrp/div[]/span',
-                        translate: ['추천', '인기'], by: ['Recommended', 'Popular']}, 
-                    {path: '#week/div.menu/span/span[]',
-                        translate: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'all']},
-                    {path: '#week/div.subsection/span/div[]',
-                        assign: 'webtoonList', innerPath: {webtoonId: 'span@data-href?1', webtoonTitle: 'span/span/strong/~', webtoonAuthor: 'span/~span'}},
-                    
-                ],
-                css: [
-                    {selector: '.logoWrp',
-                        style: 'display: inline-block;'},
-                ] 
-            },
-            {  route: '/home',
-                html: [
-                    {path: 'div.pc_header/h1/a/+', tagName: 'span', style: 'cursor: pointer; display: inline-block; vertical-align: top; width: 1.5em; height: 1.5em; fill: white; margin: -0.25em 0 0 0.5em;',
-                        assign: 'menu'},
-                    {path: 'input.seriesId@value',
-                        assign: 'webtoonId'},
-                        
-                    {path: 'div.con_pc/div/div/h2/span/-',
-                        assign: 'webtoonTitle'},
-                    {path: 'div.con_pc/div/div/h2/span',
-                        assign: 'webtoonAuthor'},
-                    {path: 'div.con_pc/div/div/a',
-                        translate: 'FIRST'},
-                    {path: 'div.con_pc/div/~div/div.contentSlide/a[]',
-                        assign: 'chapterList', innerPath: {chapterId: 'strong/^a@data-productid', chapterTitle: 'strong'}},
-                    
-                    {path: 'div.pc_contentWrp/div/div/h2/span/-',
-                        assign: 'webtoonTitle'},
-                    {path: 'div.pc_contentWrp/div/div/h2/span',
-                        assign: 'webtoonAuthor'},
-                    {path: 'div.pc_contentWrp/div/div/a',
-                        translate: 'FIRST'},
-                    {path: 'div.pc_contentWrp/div/~div/div.contentSlide/table/thead/tr/th[]',
-                        translate: ['Title', 'Published']},
-                    {path: 'div.pc_contentWrp/div/~div/div.contentSlide/table/tbody/tr[]',
-                        assign: 'chapterList', innerPath: {chapterId: 'td/^tr@data-productid', chapterTitle: 'td/span.titleArea'}},
-                ]
-            },
-            {  route: '/viewer',
-                html: [
-                    {path: 'div/div/h1/+', tagName: 'span', style: 'cursor: pointer; position: absolute; top: 15px; left: 156px; width: 25px; height: 25px; fill: white;',
-                        assign: 'menu'},
-                    {path: 'div/div/span.title',
-                        assign: 'webtoonTitle'},
-                    {path: 'input.seriesId@value',
-                        assign: 'webtoonId'},
-                    {path: 'div/div/span.btnWrp/a[]/', tagName: 'span', 
-                        translate: ['HOME', 'LIST', 'PREV', 'NEXT']},
-                ],
-                css: [
-                    {selector: '.pcToonViewList .topBar .title',
-                        style: 'left: 190px;'},
-                    {selector: '.pcToonViewList .topBar a',
-                        style: 'text-indent: 0; position: relative;'},
-                    {selector: '.pcToonViewList .topBar a span',
-                        style: 'z-index: 2; position: absolute; display: inline-block; color: white; box-sizing: border-box; line-height: 56px; top: 0; left: 0; font-weight: bold; font-size: 0.75em;'},
-                    {selector: '.topBar .btnWrp a:before',
-                        style: 'content: ""; display: block; height: 100%; width: 60px; box-sizing: border-box; background: #333; position: absolute; top: 0; left: 0; z-index: 1;'},
-                    {selector: '.topBar .btnWrp a:hover:before',
-                        style: 'background: #494949;'},
-                    {selector: '.topBar .btnWrp a.home:before, .topBar .btnWrp a.list:before',
-                        style: 'margin-left: 36px;'},
-                    {selector: '.topBar .btnWrp a.pc_view_prev:before',
-                        style: 'margin-left: 22px;'},
-                    {selector: '.topBar .btnWrp a.pc_view_next:before',
-                        style: 'margin-right: 30px;'},
-                    {selector: '.pcToonViewList .topBar a.home span',
-                        style: 'padding-left: 40px;'},
-                    {selector: '.pcToonViewList .topBar a.list span',
-                        style: 'padding-left: 33px;'},
-                    {selector: '.pcToonViewList .topBar a.pc_view_prev span',
-                        style: 'padding-left: 25px;'},
-                    {selector: '.pcToonViewList .topBar a.pc_view_next span',
-                        style: 'padding-right: 35px; width: 100%; text-align: right;'},
-                ] 
+        },
+        load: function(property) {
+            var data = localStorage.getItem('overtooning.' + property);
+            if(data && (data = JSON.parse(data))) {
+                this[property] = data;
+            }  
+        },
+        save: function(property) {
+            if(this[property]) {
+                localStorage.setItem('overtooning.' + property, JSON.stringify(this[property]));
             }
-            ];
-        // ----------------- LENZHIN $lezhin
-        } else if (window.location.hostname == 'ex-ac.lezhin.com') {
-            this.template = [
-            {  route: '/overseaAdultCertificate.php',
-                html: [
-                    {path: 'div/div.jumbotron/h3',
-                        translate: 'Adult certification for overseas users'},
-                    {path: '#formAdultCertificate/div/label',
-                        translate: 'Name'},
-                    {path: '#inputUserName@placeholder',
-                        translate: 'Please write your name.'},
-                    {path: '#datepicker/label',
-                        translate: 'Date of birth'},
-                    {path: '#datepicker/+/div/label',
-                        translate: 'Sex'},
-                    {path: '#datepicker/+/div/div/div[]/label/input/+',
-                        translate: ['Man', 'Woman']},
-                    {path: '#btnSubmit',
-                        translate: 'Submit'},
-                    {path: '#btnClose',
-                        translate: 'Close'},
-                ]
+        },
+        erase: function(property) {
+            localStorage.removeItem('overtooning.' + property);
+        }
+    },
+
+    jar: { //holds temporary shared vars for internal functions
+        node: { //store properties like webtoonId, webtoonTitle etc...
+            nodeList: {},
+            valueList: {},
+            routineList: {},
+            pathList: {},
+            addNode: function(property, node, path) {
+                if(!this.nodeList[property]) {
+                    this.nodeList[property] = [];
+                }
+                if(!this.pathList[property]) {
+                    this.pathList[property] = [];
+                }
+                var index = this.nodeList[property].indexOf(node);
+                if(index == -1) { // no duplicate node
+                    var pathIndex = this.pathList[property].indexOf(path);
+                    if(pathIndex == -1) {
+                        this.nodeList[property].push(node);
+                        return this.nodeList[property].length-1;
+                    }
+                    this.nodeList[property][pathIndex] = node;
+                    return pathIndex;
+                }
+                return index;
+            },
+            value: function(property, value) {
+                if(typeof value == 'string') {
+                    this.valueList[property] = value;
+                    var nodeList = [];
+                    for(var i = this.nodeList[property] ? this.nodeList[property].length -1 : -1; i > -1; i--) {
+                        if(document.contains(this.nodeList[property][i]) || this.nodeList[property][i] instanceof Attr) { //what to do with Attr?
+                            nodeList.push(this.nodeList[property][i]);
+                            overtooning.value(this.nodeList[property][i], value);
+                        }
+                    }
+                    this.nodeList[property] = nodeList;
+                }
+                if(typeof this.valueList[property] !== 'undefined') {
+                    return this.valueList[property];
+                }
+                return false;
+            },
+            routine: function(property, func, args) {
+                if(typeof func == 'function') {
+                    this.routineList[property] = {func: func, args: args};
+                    var nodeList = [];
+                    for(var i = this.nodeList[property] ? this.nodeList[property].length -1 : -1; i > -1; i--) { //empty orphans.
+                        if(document.contains(this.nodeList[property][i])) {
+                            nodeList.push(this.nodeList[property][i]);
+                        }
+                    }
+                    this.nodeList[property] = nodeList;
+                }
+                for(var i = this.nodeList[property] ? this.nodeList[property].length -1 : -1; i > -1; i--) {
+                    var node = this.nodeList[property][i],
+                        unactiveNode = [],
+                        order = (this.routineList[property].args && this.routineList[property].args.order),
+                        active = false,
+                        item = 0;
+                    while(node) {
+                        item++;
+                        this.routineList[property].args.item = item;
+                        active = this.routineList[property].func(node, this.routineList[property].args);
+                        if(order) { //order subroutine
+                            if(!active) {
+                                unactiveNode.push(node);
+                            } else {
+                                if(unactiveNode.length) {
+                                    var saveNodePlace = node.nextSibling; //we should move them all
+                                    var switchNode = unactiveNode.shift(); // but will mess with the order because we do not care about non translated stuff
+                                    node.parentNode.replaceChild(node, switchNode);
+                                    node.parentNode.insertBefore(switchNode, saveNodePlace);
+                                    node = switchNode;
+                                    unactiveNode.push(node);
+                                }
+                            }
+                        }
+                        if(this.routineList[property].args && this.routineList[property].args.next) {
+                            node = overtooning.next(node, this.routineList[property].args.next);
+                            if(order && node.newList && this.routineList[property].args.multiple) {
+                                unactiveNode = [];
+                            }
+                            if(node && node.node) {
+                                node = node.node;
+                            } else {
+                                node = false;
+                            }
+                        } else {
+                            node = false;
+                        }
+                    }
+                }
+            },
+            refresh: function(property) {
+                if(typeof property !== 'undefined') {
+                    if(typeof this.valueList[property] == 'string') {
+                        this.value(property, this.value(property));
+                    } else if(typeof this.routineList[property].func == 'function') {
+                        this.routine(property);
+                    }
+                } else {
+                    for(property in this.valueList) {
+                        this.refresh(property);
+                    }
+                }
             }
-            ];
-        } else if(window.location.hostname == 'www.lezhin.com') {
-            this.template = [
-            {  route: '/?$',
-                html: [
-                ]
-            },
-            {  route: '/login',
-                html: [
-                    {path: '#main/div/h1',
-                        translate: 'Log in Lezhin'},
-                    {path: '#login-fb/span',
-                        translate: 'Login with Facebook'},
-                    {path: '#email@placeholder',
-                        translate: 'email'},
-                    {path: '#password@placeholder',
-                        translate: 'password'},
-                    {path: '#password/../+/p/label/span',
-                        translate: 'Remember me'},
-                    {path: '#password/../+/p/+/p/button',
-                        translate: 'Log in'},
-                    {path: '#signup/span',
-                        translate: 'Sign Up'},
-                    {path: '#forgot-password/span',
-                        translate: 'Forgot password'},
-                ]
-            },
-            {  route: '/signup',
-                html: [
-                    {path: '#main/div/h1',
-                        translate: 'Sign up Lezhin'},
-                    {path: '#auth-fb/p',
-                        translate: 'Simply sign up with Facebook'},
-                    {path: '#signup-fb/span',
-                        translate: 'Sign up with Facebook'},
-                    {path: '#auth-email/p',
-                        translate: 'Sign up in only 3 seconds with your email!'},
-                    {path: '#email@placeholder',
-                        translate: 'your active email'},
-                    {path: '#password@placeholder',
-                        translate: 'password (6 chars or more)'},
-                    {path: '#agreement/+/a[]',
-                        translate: ['Terms', 'Privacy policy']},
-                    {path: '#agreement/+/a[]/+',
-                        translate: [' and ', ' accepted']},
-                    {path: '#password/../+/p/+/p/button',
-                        translate: 'Sign Up'},
-                    {path: '#password/../+/p/+/p/+/p/a',
-                        translate: 'log in'},
-                    {path: '#password/../+/p/+/p/+/p/a/-',
-                        translate: 'Just '},
-                    {path: '#password/../+/p/+/p/+/p/a/+',
-                        translate: ' if you are already registered!'},
-                ]
-            },
-            {  route: '/adult',
-                html: [
-                    {path: '#main/div/p',
-                        translate: 'Access adult content (must be 18 years old).'},
-                    {path: '#auth-method-form/p',
-                        translate: 'Please select your authentication method.'},
-                    {path: '#auth-method-form/ul/li[]/label/input/+',
-                        translate: ['I-PIN authentication', 'Assured certification (mobile phone)', 'International User Authentication']},
-                    {path: '#auth-method-form/+/form[]/p/button',
-                        translate: ['Confirm', 'Confirm', 'Confirm']},
-                ]
-            },
-            {  route: '(/?$|/comic/[A-Za-z0-9_-]+/?$|/login|/signup)',
-                html: [
-                    {path: '#mainheader/div/div/div', className: 'overtooning', style: 'cursor: pointer;',
-                        assign: 'menu'},
-                    {path: '#nav-main/a[]',
-                        translate: ['Schedule', 'Publications', 'Top 100', 'Mature', 'Novel']},
-                    {path: '#auth-tabs/a[]',
-                        translate: ['Login', 'Sign Up']},
-                    /*{path: '#sidenav-exit/div/div.sidenav-coinwrap/div/br/-',
-                        translate: 'Web/Android'},
-                    {path: '#sidenav-exit/div/div.sidenav-coinwrap/div/+/div/span[]/+',
-                        translate: [' coins', ' coins']},*/
-                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login',
-                        translate: 'Login'},
-                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-login/+/a[]',
-                        translate: ['Sign Up', 'FAQ']},
-                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-library',
-                        translate: 'Library'},
-                    {path: '#sidenav-exit/div.sidenav-bottom/a.ico-library/+/a[]',
-                        translate: ['Account', 'Wallet', 'Invite Friends', 'My List', 'FAQ', 'Log Out']},
-                    {path: '#main-login-fb',
-                        translate: 'Login with Facebook'},
-                    {path: '#main-login-fb/+/div/input@placeholder',
-                        translate: 'Email'},
-                    {path: '#main-login-fb/+/div/+/div/input@placeholder',
-                        translate: 'Password'},
-                    {path: '#main-login-fb/+/button',
-                        translate: 'Sign in with email'},
-                    {path: '#main-login-fb/+/button/+/div/label',
-                        translate: 'Remember me'},
-                    {path: '#main-login-fb/+/button/+/div/a',
-                        translate: 'Forgot password'},
-                    {path: '#main-signup-fb',
-                        translate: 'Sign up with Facebook'},
-                    {path: '#main-signup-fb/+/div/input@placeholder',
-                        translate: 'Email'},
-                    {path: '#main-signup-fb/+/div/+/div/input@placeholder',
-                        translate: 'Password (min. 6 characters)'},
-                    {path: '#main-signup-fb/+/button',
-                        translate: 'Sign up with email'},
-                    {path: '#main-signup-fb/+/button/+/div/label/a[]',
-                        translate: ['Terms', 'Privacy policy']},
-                    {path: '#main-signup-fb/+/button/+/div/label/a[]/+',
-                        translate: [' and ', ' accepted']},
-                    {path: '#search-main@placeholder',
-                        translate: 'Search'},
-                ],
-                css: [
-                    {selector: '.overtooning',
-                        style: 'float: left; width: 60px; height: 60px; padding: 10px 0 10px 20px; fill: #E50020;'},
-                    {selector: '@media (max-width: 1023px) and (orientation: landscape) { .overtooning',
-                        style: 'float: none; display: inline-block; vertical-align: middle; width: 50px; height: 50px; padding: 12px; fill: white;}'},
-                    {selector: '@media (max-width: 768px) { .overtooning',
-                        style: 'float: none; display: inline-block; vertical-align: middle; width: 50px; height: 50px; padding: 12px; fill: white;}'},
-                ]
-            },
-            {  route: '/comic/[A-Za-z0-9_-]+/?$',
-                html: [
-                    {path: '#cover-info/div/div.info/h2',
-                        assign: 'webtoonTitle'},
-                    {path: '#cover-info/div/div.info/p/a',
-                        assign: 'webtoonAuthor'},
-                    {path: '#cover-info/div/div.info/div.genre/span.genre-link[]',
-                        translate: ['성인', '백합'], by: ['Mature', 'Yuri']},
-                    {path: '#product-synopsis/h2',
-                        translate: 'Info'},
-                    {path: '#product-synopsis/p',
-                        assign: 'webtoonBlurb'},
-                    {path: '#product-comment/h2',
-                        translate: 'Editor\'s comment'},
-                    {path: '#product-comment/p',
-                        assign: 'webtoonComment'},
-                    {path: '#cover-info/div/div.info/div.info-btns/a.btn-library@href?path-1',
-                        assign: 'webtoonId'},
-                    {path: '#cover-info/div/div.info/div.info-btns/a.btn-continue',
-                        translate: 'Continue'},
-                    {path: '#cover-info/div/div.info/div.info-btns/a.btn-first-episode',
-                        translate: 'First episode'},
-                    {path: '#btn-sort-desc',
-                        translate: 'Desc'},
-                    {path: '#btn-sort-asc',
-                        translate: 'Asc'},
-                    {path: '#schedule',
-                        translate: ['매주', '목요일', '연재'], by: ['Updates Every', 'Thursday', '']},
-                    {path: '#comic-episode-list/li[]/div.episode-price/span', observe: '#comic-episode-list',
-                        translate: ['무료', '코인'], by: ['Free', 'coins']},
-                    {path: '#comic-episode-list/li[]', observe: '#comic-episode-list',
-                        assign: 'chapterList', innerPath: {chapterId: '@data-episode-id?0', chapterTitle: 'div.episode-seq/div.episode-title'}}
-                ],
-                css: [
-                ]
-            },
-            {  route: '/comic/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+',
-                html: [
-                    {path: '#list@href?path-1',
-                        assign: 'webtoonId'},
-                    {path: '@data-episode-id',
-                        assign: 'chapterId'},
-                    {path: '#list/span',
-                        assign: 'chapterTitle'},
-                    {path: '#list/span/+/span',
-                        assign: 'webtoonTitle'},
-                    {path: '#viewer-nav/~li', className: 'overtooning', style: 'vertical-align: top; background: white; box-sizing: border-box; padding: 10px; fill: #E50020; cursor: pointer; border-left: 1px solid lightgrey;',
-                        assign: 'menu'},
-                    {path: '#scroll-list/div[]/img', observe: '#scroll-list',
-                        assign: 'imageList', innerPath: {style: 'margin-left: auto; margin-right: auto;'}},
-                    {path: '#episode-nav-section/ul/li[]/button',
-                        translate: ['Previous', 'Next']},
-                ],
-                css: [
-                    {selector: '.overtooning',
-                        style: 'height: 60px; width: 60px;'},
-                    {selector: '@media (max-width: 1023px) and (orientation: landscape) { .overtooning',
-                        style: 'height: 48px; width: 48px; border-right: 1px solid lightgrey;}'},
-                    {selector: '@media (max-width: 768px) { .overtooning',
-                        style: 'height: 48px; width: 48px; border-right: 1px solid lightgrey;}'},
-                    {selector: '#scroll-list [data-page-position="curr"]',
-                        style: 'width: 100%; text-align: center;'},
-                    {selector: '#scroll-list .cut img',
-                        style: 'max-width: 100%; width: auto;'},
-                ]
+        },
+        log: [],
+        fetch: {node: [], name: []},
+        run: {},
+        menu: {}, //holds the menu node container.
+        query: [],
+        rawImage: new Image(),
+        overlay: new Image(),
+        splitOverlay: 0, //whether or not overlays are split (gives split height)
+        canvas: [],
+        pixel: 'data:image/svg+xml,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="1"%20height="1"></svg>',
+        pixelRatio: 0,
+        currentImage: 0,
+        busy: false,
+        timer: false,
+        interval: false,
+        maxDimension: 1024 * 1024, //set default expected image's size to 1 Megapixel
+        bufferSize: 0,
+        internalWebtoonId: -1,
+        observer: [],
+        forceRaw: false //Cheese-like compromize
+    },        
+
+    menu: {
+        close: function() {
+            if(overtooning.jar.menu.container) {
+                overtooning.jar.menu.container.parentNode.removeChild(overtooning.jar.menu.container);
             }
-            ];
+        },
+        console: function(element, category) {
+            if(!overtooning.jar.menu.container) {
+                overtooning.jar.menu.container = overtooning.create('div', {id: 'otoon-console'},
+                    overtooning.create('div', {className: 'otoon-row otoon-header', style: 'font-weight: bold; border-bottom: 1px solid black;'},
+                        overtooning.create('a', {className: 'otoon-col otoon-button otoon-logo', textContent: 'Overtooning', href: 'http://overtooning.bumblebits.net', target: '_blank', style: 'text-decoration: none !important;'}, overtooning.create('small', {textContent: ' ' + OTOON_VERSION})),
+                        overtooning.create('span', {className: 'otoon-col otoon-button otoon-close', textContent: 'X', onclick: overtooning.menu.close})
+                    )
+                );
+            }
+            while(overtooning.jar.menu.container.firstChild.nextSibling) {
+                overtooning.jar.menu.container.removeChild(overtooning.jar.menu.container.firstChild.nextSibling);
+            }
+            overtooning.jar.menu.container.appendChild(overtooning.create('div', {className: 'otoon-row otoon-menu', style: 'position: relative; font-weight: bold; border-bottom: 1px solid black;'},
+                overtooning.create('span', {
+                    className: 'otoon-col otoon-button otoon-log' + (category == 'log' ? ' otoon-active':''),
+                    textContent: overtooning.storage.text._LOG, onclick: overtooning.menu.log}),
+                overtooning.create('span', {
+                    className: 'otoon-col otoon-button otoon-general' + (category == 'general' ? ' otoon-active':''),
+                    textContent: overtooning.storage.text._SETTING, onclick: overtooning.menu.setting}),
+                overtooning.create('span', {
+                    className: 'otoon-col otoon-button otoon-feed' + (category == 'feed' ? ' otoon-active':''),
+                    textContent: overtooning.storage.text._FEED, onclick: overtooning.menu.feed}),
+                overtooning.create('span', {
+                    className: 'otoon-col otoon-button otoon-webtoon' + (category == 'webtoon' ? ' otoon-active':''),
+                    textContent: overtooning.storage.text._WEBTOON, onclick: overtooning.menu.webtoon}),
+                overtooning.create('span', {
+                    className: 'otoon-col otoon-button otoon-template' + (category == 'template' ? ' otoon-active':''),
+                    textContent: overtooning.storage.text._TEMPLATE, onclick: overtooning.menu.template}),
+                overtooning.create('span', {
+                    className: 'otoon-col otoon-button otoon-rough' + (category == 'rough' ? ' otoon-active':''),
+                    textContent: overtooning.storage.text._ROUGH, onclick: overtooning.menu.rough})
+            ));
+            
+            if(element) {
+                element.className = 'otoon-col';
+                overtooning.jar.menu.container.appendChild(overtooning.create('div', {className: 'otoon-row otoon-body'}, element));
+            }
+            if(!overtooning.jar.menu.container.parentNode) {
+                document.body.appendChild(overtooning.jar.menu.container);
+            }
+        },
+        log: function() {
+            var logs = overtooning.create('div', {});
+            if(!overtooning.jar.log.length) {
+                logs.appendChild(overtooning.create('Empty Log'))
+            }
+            for(var i = 0; i < overtooning.jar.log.length; i++) {
+                logs.appendChild(overtooning.create('p', {textContent: overtooning.jar.log[i], style: 'padding: 0 1em;'}));
+            }
+            overtooning.menu.console(logs, 'log');
+        },
+        setting: function() {
+            var settings = overtooning.create('div', {});
+            
+            settings.appendChild(overtooning.create('div', {className: 'otoon-row'},
+                overtooning.create('span', {className: 'otoon-col otoon-option-name', textContent: overtooning.storage.text._SETTING_LAZYLOAD}),
+                overtooning.create('span', {className: 'otoon-col otoon-option-value'},
+                    overtooning.create('input', {className: 'otoon-toggler otoon-hidden', id: 'otoon-lazyload-y', name: 'lazyload', type: 'radio', value: '1',
+                        onclick: function() {overtooning.storage.config.lazyLoading = true; overtooning.storage.save('config');}}),
+                    overtooning.create('label', {className: 'otoon-option otoon-yes', for: 'otoon-lazyload-y', textContent: overtooning.storage.text._YES}),
+                    overtooning.create('input', {className: 'otoon-toggler otoon-hidden', id: 'otoon-lazyload-n', name: 'lazyload', type: 'radio', value: '0',
+                        onclick: function() {overtooning.storage.config.lazyLoading = false; overtooning.storage.save('config');}}),
+                    overtooning.create('label', {className: 'otoon-option otoon-no', for: 'otoon-lazyload-n', textContent: overtooning.storage.text._NO})
+                    ),
+                overtooning.create('span', {className: 'otoon-col otoon-info', textContent: overtooning.storage.text._SETTING_LAZYLOAD_I})
+            ));
+
+            settings.appendChild(overtooning.create('div', {className: 'otoon-row'},
+                overtooning.create('span', {className: 'otoon-col otoon-option-name', textContent: overtooning.storage.text._SETTING_MEMORY}),
+                overtooning.create('span', {className: 'otoon-col otoon-option-value'},
+                    overtooning.create('input', {type: 'text', id: 'otoon-memorylimit', style: 'width: 40%;', value: Math.round(overtooning.storage.config.memoryLimit / 1024 / 1024)}),
+                    overtooning.create('span', {className: 'otoon-option otoon-yes', textContent: overtooning.storage.text._APPLY,
+                    onclick: function() {
+                        var memoryLimit = Math.min(Math.max(document.getElementById('otoon-memorylimit').value, 0), 100);
+                        overtooning.storage.config.memoryLimit = memoryLimit * 1024 * 1024;
+                        overtooning.storage.save('config');
+                    }})
+                ),
+                overtooning.create('span', {className: 'otoon-col otoon-info', textContent: overtooning.storage.text._SETTING_MEMORY_I})
+            ));
+
+            var lang = overtooning.lang();
+            settings.appendChild(overtooning.create('div', {className: 'otoon-row'},
+                overtooning.create('span', {className: 'otoon-col otoon-option-name', textContent: overtooning.storage.text._SETTING_LANG}),
+                overtooning.create('span', {className: 'otoon-col otoon-option-value'},
+                    overtooning.create('input', {type: 'text', id: 'otoon-lang', style: 'width: 40%;', value: overtooning.storage.config.lang ? overtooning.storage.config.lang.join(', ') : ''}),
+                    overtooning.create('span', {className: 'otoon-option otoon-yes', textContent: overtooning.storage.text._APPLY,
+                    onclick: function() {
+                        var lang = overtooning.lang(),
+                            result = [],
+                            input = document.getElementById('otoon-lang');
+                        var inputValue = input.value.split(',');
+                        for(var i = inputValue.length-1; i > -1; i--){
+                            if(lang.indexOf(inputValue[i].trim()) != -1) {
+                                result.unshift(inputValue[i].trim());
+                            }
+                        }
+                        if(overtooning.storage.config.lang != result) {
+                            overtooning.storage.config.lang = result;
+                            overtooning.storage.save('config');
+                            //ping new template?
+                            overtooning.cors(
+                                overtooning.storage.feed[0].url + '/' + window.location.hostname + '/0/0.json?t=0&lang='+result.join(','), 'GET', '', '',
+                                function(data) {overtooning.jar.query.unshift({feedId: 0, ping: true}); overtooning.query(data); overtooning.menu.setting();},
+                                function(error) {overtooning.addLog('[overtooning.run] No template can be loaded'); overtooning.menu.log();}
+                            );
+                        }
+                        input.value = result.join(', ');
+                    }})
+                ),
+                overtooning.create('span', {className: 'otoon-col otoon-info', textContent: overtooning.storage.text._SETTING_LANG_I + lang.join(', ')})
+            ));
+
+            settings.appendChild(overtooning.create('div', {className: 'otoon-row'},
+                overtooning.create('span', {className: 'otoon-col otoon-option-name', textContent: overtooning.storage.text._SETTING_DISABLE}),
+                overtooning.create('span', {className: 'otoon-col otoon-option-value'},
+                    overtooning.create('input', {className: 'otoon-toggler otoon-hidden', id: 'otoon-disable-y', name: 'disable', type: 'radio', value: '1',
+                        onclick: function() {overtooning.storage.config.disable = true; overtooning.storage.save('config');}}),
+                    overtooning.create('label', {className: 'otoon-option otoon-no', for: 'otoon-disable-y', textContent: overtooning.storage.text._YES}),
+                    overtooning.create('input', {className: 'otoon-toggler otoon-hidden', id: 'otoon-disable-n', name: 'disable', type: 'radio', value: '0',
+                        onclick: function() {overtooning.storage.config.disable = false; overtooning.storage.save('config');}}),
+                    overtooning.create('label', {className: 'otoon-option otoon-yes', for: 'otoon-disable-n', textContent: overtooning.storage.text._NO})
+                    )
+            ));
+
+            settings.appendChild(overtooning.create('div', {className: 'otoon-row'},
+                overtooning.create('span', {className: 'otoon-col otoon-option-name', textContent: overtooning.storage.text._SETTING_RESET}),
+                overtooning.create('span', {className: 'otoon-col otoon-option-value'},
+                    overtooning.create('span', {className: 'otoon-option otoon-no', textContent: overtooning.storage.text._APPLY,
+                    onclick: function() {
+                        overtooning.storage.exec('erase');
+                        window.setTimeout(function() {document.location.reload()}, 3000);
+                    }})
+                ),
+                overtooning.create('span', {className: 'otoon-col otoon-info', textContent: overtooning.storage.text._SETTING_RESET_I})
+            ));
+            
+            overtooning.menu.console(settings, 'general');
+            
+            document.getElementById(overtooning.storage.config.lazyLoading ? 'otoon-lazyload-y' : 'otoon-lazyload-n').checked = true;
+            document.getElementById(overtooning.storage.config.disable ? 'otoon-disable-y' : 'otoon-disable-n').checked = true;
+        },
+        feed: function() {
+            var feeds = overtooning.create('div', {});
+            if(!overtooning.storage.feed.length) {
+                feeds.appendChild(overtooning.create('no feed'))
+            }
+            for(var i = 0; i < overtooning.storage.feed.length; i++) {
+                feeds.appendChild(overtooning.create('p', {textContent: overtooning.storage.feed[i].url}));
+            }
+            overtooning.menu.console(feeds, 'feed');
+        },
+        webtoon: function() {
+            var webtoons = overtooning.create('div', {});
+            if(!overtooning.storage.webtoon.length) {
+                webtoons.appendChild(overtooning.create('no webtoon'))
+            }
+            for(var i = 0; i < overtooning.storage.webtoon.length; i++) {
+                webtoons.appendChild(overtooning.create('p', {textContent: overtooning.storage.webtoon[i].wT}));
+            }
+            overtooning.menu.console(webtoons, 'webtoon');
+        },
+        template: function() {
+            var template = overtooning.create('div', {});
+            overtooning.storage.load('template');
+            template.appendChild(overtooning.create('textarea', {style: 'width: 100%; height: 50em;', textContent: JSON.stringify(overtooning.storage.template, null, '    ')}));
+            overtooning.storage.template = null;
+            overtooning.menu.console(template, 'template');
+        },
+        rough: function() {
+            var rough = overtooning.create('div', {});
+            rough.appendChild(overtooning.create('p', {textContent: 'not yet'}));
+            overtooning.menu.console(rough, 'rough');
         }
     },
     
-    // ----------------- OVERLAYLOADER.RUN $run
+    lang: function() {
+        var lang = [];
+        for(var i = overtooning.storage.feed.length -1; i > -1; i--) {
+            if(overtooning.storage.feed[i].lang && overtooning.storage.feed[i].lang.length) {
+                for(var j = overtooning.storage.feed[i].lang.length -1; j > -1; j--) {
+                    if(lang.indexOf(overtooning.storage.feed[i].lang[j]) == -1) {
+                        lang.unshift(overtooning.storage.feed[i].lang[j]);
+                    }
+                }
+            }
+        }
+        return lang;
+    },
+    
+    mutation: function(MutationRecord) {
+        var observerId = -1, targetElement = MutationRecord[0].target;
+        for(var i = overtooning.jar.observer.length -1; i > -1; i--) {
+            if(targetElement == overtooning.jar.observer[i].target) {
+                observerId = i;
+                break;
+            }
+        }
+        if(observerId != -1) {
+            overtooning.jar.observer[observerId].observer.disconnect();
+            overtooning.addLog('[overtooning.observe] Mutation observed ' + overtooning.jar.observer[observerId].path);
+            overtooning.jar.fetch = {node: [], name: []}; //desactivate save node function (maybe remove it ?).
+            overtooning.runTemplate(overtooning.jar.observer[observerId].template);
+            overtooning.jar.observer[observerId].observer.observe(overtooning.jar.observer[observerId].target, overtooning.jar.observer[observerId].options);
+        }
+    },
+    
     run: function() {
         if (window.top !== window.self || window.frameElement) {
             return;
         }
-        // ------------------ linearize []s and sort path definitions
-        this.resource.search = [];
-        this.loadTemplate();
-        if(this.template.length == 0) { //script was run from a wrong website, or no template yet. (chrome auto-conversion from userscript wrongly interprets @include).
-            return;
+        
+        overtooning.storage.exec('load');
+        
+        if(!overtooning.jar.run.stylesheet) {
+            overtooning.jar.run.stylesheet = overtooning.create('style', {});
+            overtooning.jar.run.stylesheet.textContent = overtooning.getBaseCss();
+            delete overtooning.getBaseCss;
         }
-        this.stylesheet = this.create('style', {}); //styling through document.styleSheets throws security errors in Firefox. Don't want to rely on GM_Style.
-        for(var index = 0; index < this.template.length; index++) {
-            if( new RegExp('^' + this.template[index].route.replace(/\\/g, '').replace(/\./g, '\\.').replace(/\//g, '\/')).test(window.location.pathname/* + window.location.hash*/) ) {
-                overlayLoader.addLog('[overlayLoader.path] pathname: ' + this.template[index].route);
-                if(this.template[index].html) {
-                    for(var path = 0; path < this.template[index].html.length; path++) {
-                        if(this.template[index].html[path].next && !this.template[index].html[path].next.join) {
-                            this.template[index].html[path].next = [this.template[index].html[path].next];
-                        }
-                        var detectNext = this.template[index].html[path].path.lastIndexOf('[]');
-                        if(detectNext != -1 && !this.template[index].html[path].next) {
-                            this.template[index].html[path].next = [];
-                        }
-                        while(detectNext != -1) {
-                            this.template[index].html[path].path = this.template[index].html[path].path.substr(0, detectNext) +  this.template[index].html[path].path.substr(detectNext+2); //delete []
-                            var relativeElement = this.template[index].html[path].path.substr(this.template[index].html[path].path.lastIndexOf('/', detectNext-1) +1).replace(/#[a-zA-Z0-9_\-]+/, '');
-                            var parentNumber = relativeElement.replace(/\/(\+|\-)([0-9]+)?(\/[^\/\+\-][^\/]*)?/g, '').match(/\//g);
-                            this.template[index].html[path].next.push( (parentNumber ? '..' + (parentNumber.length > 1 ? parentNumber.length : '') + '/' : '') + '+/' + relativeElement);
-                            detectNext = this.template[index].html[path].path.lastIndexOf('[]');
-                        }
-                        this.resource.search.push(this.template[index].html[path]);
-                    }
-                }
-                if(this.template[index].css) {
-                    for(var rule = 0; rule < this.template[index].css.length; rule++) {
-                        this.stylesheet.appendChild(this.create(this.template[index].css[rule].selector + ' {' + this.template[index].css[rule].style + '}'));
-                    }
-                }
+        if(!overtooning.jar.run.stylesheet.parentNode) {
+            document.body.appendChild(overtooning.jar.run.stylesheet);
+        }
+        
+        if(!overtooning.storage.template || !overtooning.storage.template.length) {
+            //legacy localStorage variables
+            localStorage.removeItem('doongeFeeds');
+            localStorage.removeItem('overloaderData');
+            // end of legacy
+            if(!overtooning.storage.feed || !overtooning.storage.feed.length) {
+                overtooning.showFeed();
+            } else {
+                overtooning.jar.query.push({feedId: 0, ping: true});
+                overtooning.cors(
+                    overtooning.storage.feed[0].url + '/' + window.location.hostname + '/0/0.json?t=0'+
+                        (overtooning.storage.config.lang ? overtooning.storage.config.lang.join(',') : ''), 'GET', '', '',
+                    function(data) {overtooning.query(data); if(overtooning.storage.template.length) overtooning.run();},
+                    function(error) {overtooning.addLog('[overtooning.run] No template can be loaded'); overtooning.menu.log();}
+                );
             }
+            return false;
         }
-        document.body.appendChild(this.stylesheet);
-        delete this.loadTemplate;
-        this.resource.search.sort(function(a, b) {return ( ( a.path == b.path ) ? 0 : ( ( a.path > b.path ) ? 1 : -1 ) );});
-        // ------------------------ run each path: observe, wait, runPath
-        for(var index = 0; index < this.resource.search.length; index++) {
-            if(this.resource.search[index].observe) {
-                var targetElement = this.fetch(this.resource.search[index].observe);
-                if(targetElement) {
-                    if(this.observer.indexOf(targetElement) != -1) {
-                        targetElement.observer.disconnect();
-                        overlayLoader.addLog('Adding function to ' + this.resource.search[index].observe);
-                        for (var property in this.resource.search[index].options) {
-                            if (this.resource.search[index].options.hasOwnProperty(property) && !targetElement.observer.options[property]) {
-                                targetElement.observer.options[property] = true;
+
+        if(!overtooning.jar.run.template) {
+            overtooning.jar.run.template = [];
+            var priorityTemplate = [];
+            //select proper routes and populate main queue (overtooning.jar.run.template)
+            for(var index = overtooning.storage.template.length -1; index > -1; index--) {
+                if( new RegExp('^' + overtooning.storage.template[index].route.replace(/\\/g, '').replace(/\./g, '\\.').replace(/\//g, '\/')).test(window.location.pathname/* + window.location.hash*/) ) {
+                    overtooning.addLog('[overtooning.run] pathname: ' + overtooning.storage.template[index].route);
+                    if(overtooning.storage.template[index].html) {
+                        for(var path = overtooning.storage.template[index].html.length -1; path > -1; path--) {
+                            if(overtooning.storage.template[index].html[path].assign && /^overtooning|webtoonId|chapterId$/.test(overtooning.storage.template[index].html[path].assign)) {
+                                priorityTemplate.push(overtooning.storage.template[index].html[path]);
+                            } else {
+                                overtooning.jar.run.template.push(overtooning.storage.template[index].html[path]);
                             }
                         }
-                    } else {
-                        this.observer.push(targetElement);
-                        targetElement.observer = new MutationObserver(function(mutations) {
-                            overlayLoader.mutationObserved(this, mutations);
-                        });
-                        targetElement.observer.options = this.resource.search[index].options || {childList: true};
-                        targetElement.observer.target = targetElement;
-                        overlayLoader.addLog('[overlayLoader.path] Attaching observer to ' + this.resource.search[index].observe);
-                        targetElement.observer.actionPath = [];
                     }
-                    targetElement.observer.actionPath.push({
-                        path: this.resource.search[index].path,
-                        next: this.resource.search[index].next || false,
-                        translate: this.resource.search[index].translate || false,
-                        innerPath: this.resource.search[index].innerPath || false,
-                        callback: this.resource.search[index].translate ? 'translate' : (this.resource.search[index].assign == 'imageList' ? 'canvas' : 'listUpdate')
-                    });
-                    targetElement.observer.observe(targetElement, targetElement.observer.options);
+                    if(overtooning.storage.template[index].css && !overtooning.storage.config.disable) {
+                        overtooning.jar.run.stylesheet.textContent += overtooning.storage.template[index].css;
+                    }
                 }
             }
-            if(this.resource.search[index].wait) {
-                if(this.resource.search[index].wait && document.readyState != "complete") {
-                    this.resource.search[index].timer = window.setInterval(function() {
-                        var index = arguments[0];
-                        if(document.readyState == "complete") {
-                            window.clearInterval(overlayLoader.resource.search[index].timer);
-                            overlayLoader.resource.search[index].timer2 = window.setTimeout(function() {
-                                var index = arguments[0];
-                                window.clearTimeout(overlayLoader.resource.search[index].timer2);
-                                overlayLoader.resource.search[index].node = overlayLoader.fetch(overlayLoader.resource.search[index].path);
-                                if(overlayLoader.resource.search[index].translate) {
-                                    overlayLoader.translate(overlayLoader.resource.search[index]);
-                                } else {
-                                    if(overlayLoader.resource.search[index].assign == 'imageList') {
-                                        overlayLoader.canvas(overlayLoader.resource.search[index]);
-                                    } else {
-                                        overlayLoader.listUpdate(overlayLoader.resource.search[index]);
-                                    }
-                                }
-                            }, 1000, index); 
+            overtooning.storage.template = [];
+            if(priorityTemplate.length) {
+                overtooning.runTemplate(priorityTemplate);
+                priorityTemplate = [];
+            }
+            
+            if(!overtooning.jar.node.value('overtooning')) {
+                overtooning.addLog('[overtooning.run] Could not bootstrap - correct template?');
+                overtooning.menu.log();
+            }
+            
+            if(overtooning.storage.config.disable) {
+                 overtooning.addLog('[overtooning.run] User has disabled Overtooning on this website.');
+                return false;
+            }
+            
+            var webtoonId = false;
+            if(webtoonId = overtooning.jar.node.value('webtoonId')) {
+                 for(var i = overtooning.storage.webtoon.length -1; i > -1; i--) {
+                    if(overtooning.storage.webtoon[i].wI == webtoonId) {
+                        overtooning.jar.internalWebtoonId = i;
+                        overtooning.jar.node.value('webtoonTitle', overtooning.storage.webtoon[i].wT);
+                        overtooning.jar.node.value('webtoonAuthor', overtooning.storage.webtoon[i].wA);
+                        overtooning.jar.node.value('webtoonBlurb', overtooning.storage.webtoon[i].wB);
+                    }
+                }
+            }
+            
+            //*// Cheese in the Trap exception
+            var forceWebtoonId = window.location.hash.match(new RegExp('^#otoon=([0-9a-zA-Z_-]+)$'));
+            if(forceWebtoonId) {
+                overtooning.jar.node.value('chapterId', forceWebtoonId[1]);
+                overtooning.jar.forceRaw = true;
+                overtooning.jar.saveAssignImageList = overtooning.assign.imageList;
+                overtooning.assign.imageList = function(data) {  //do nothing
+                    overtooning.jar.node.routineList.imageList = {args: data};
+                };
+            }
+
+            //*/
+            
+            overtooning.jar.run.template.sort(function(a, b) {return ( ( a.path == b.path ) ? 0 : ( ( a.path > b.path ) ? 1 : -1 ) );});
+            //populate wait and observers queues (overtooning.jar.run.wait and overtooning.jar.run.observe).
+            overtooning.jar.run.wait = [];
+            overtooning.jar.run.observe = [];
+            for(var index = 0; index <  overtooning.jar.run.template.length; index++) { //wait and observers setup
+                if(overtooning.jar.run.template[index].wait) {
+                    overtooning.jar.run.wait.push(overtooning.jar.run.template[index]);
+                }
+                if(overtooning.jar.run.template[index].observe) {
+                    var targetElement = overtooning.fetch(overtooning.jar.run.template[index].observe);
+                    if(targetElement) {
+                        var observerId = -1;
+                        for(var i = overtooning.jar.observer.length -1; i > -1; i--) {
+                            if(targetElement == overtooning.jar.observer[i].target) {
+                                observerId = i;
+                                break;
+                            }
                         }
-                        }, 200, index);
+                        if(observerId == -1) {
+                            overtooning.addLog('[overtooning.run.observe] Attaching observer to ' + overtooning.jar.run.template[index].observe);
+                            overtooning.jar.observer.push({
+                                target: targetElement,
+                                path: overtooning.jar.run.template[index].observe,
+                                options: overtooning.jar.run.template[index].options || {childList: true},
+                                template: []
+                            });
+                            observerId = overtooning.jar.observer.length -1;
+                            overtooning.jar.observer[observerId].observer = new MutationObserver(overtooning.mutation);
+                        } else {
+                            overtooning.jar.observer[observerId].observer.disconnect();
+                            overtooning.addLog('[overtooning.run.observe] Overloading ' + overtooning.jar.run.template[index].observe);
+                            for(var property in overtooning.jar.run.template[index].options) {
+                                if (overtooning.jar.run.template[index].options.hasOwnProperty(property) && !overtooning.jar.observer[observerId].options[property]) {
+                                    overtooning.jar.observer[observerId].options[property] = true;
+                                }
+                            }
+                        }
+                        delete overtooning.jar.run.template[index].observe;
+                        delete overtooning.jar.run.template[index].options;
+                        overtooning.jar.observer[observerId].template.push(overtooning.jar.run.template[index]);
+                        overtooning.jar.observer[observerId].observer.observe(overtooning.jar.observer[observerId].target, overtooning.jar.observer[observerId].options);
+                    }
                 }
             }
-            var node = this.fetch(this.resource.search[index].path);
-            if(node) {
-                this.resource.search[index].node = node;
-                this.runPath(this.resource.search[index]);
+            //if overtooning.jar.run.wait isn't empty, plan it.
+            if(overtooning.jar.run.wait.length) {
+                overtooning.jar.run.timer = window.setInterval(function() {
+                    if(document.readyState == "complete") {
+                        window.clearInterval(overtooning.jar.run.timer);
+                        overtooning.runTemplate(overtooning.jar.run.wait);
+                        delete overtooning.jar.run.wait;
+                    }
+                }, 1000);
             }
         }
-        // --------- end of pathing.
-        overlayLoader.addLog("[overlayLoader.run] End of pathing.");
-        // -- MENU
-        if(this.vars.menu) {
-            this.vars.menu.node.textContent = '';
+
+        //once every image has been described
+        if(!overtooning.jar.pixelRatio) {
+            var ctx = document.createElement("canvas").getContext("2d"),
+                dpr = window.devicePixelRatio || 1,
+                bsr = ctx.webkitBackingStorePixelRatio ||
+                      ctx.mozBackingStorePixelRatio ||
+                      ctx.msBackingStorePixelRatio ||
+                      ctx.oBackingStorePixelRatio ||
+                      ctx.backingStorePixelRatio || 1;
+            overtooning.jar.pixelRatio =  dpr / bsr;
+        }
+        
+        overtooning.jar.rawImage.onload = overtooning.rawImageOnLoad;
+        overtooning.jar.rawImage.onerror = overtooning.rawImageOnError;
+        overtooning.jar.overlay.onload = overtooning.overlayOnLoad;
+        overtooning.jar.overlay.onerror = overtooning.overlayOnError;
+        
+        overtooning.runTemplate(overtooning.jar.run.template);
+        overtooning.addLog('[overtooning.template] End.');
+
+        var MTime = overtooning.MTime(),
+            priorityFeed = [];
+        if(overtooning.jar.internalWebtoonId != -1) {
+            priorityFeed = overtooning.storage.webtoon[overtooning.jar.internalWebtoonId].fL;
+            for(var j = 0; j < priorityFeed.length; j++) {
+                overtooning.jar.query.push({feedId: priorityFeed[j]});
+            }
+        }
+        for(var j = 0; j < overtooning.storage.feed.length; j++) {
+            if(priorityFeed.indexOf(j) == -1 && overtooning.storage.feed[j].lastUpdate + 60 * 24 * 7 < MTime) {
+                overtooning.addLog('[overtooning.run] Ping feed: ' + overtooning.storage.feed[j].url + ' (' + j + ')');
+                overtooning.jar.query.push({feedId: j, ping: true});
+            }
+        }
+        overtooning.addLog('[overtooning.run] Queries to be made: ' + overtooning.jar.query.length);
+        if(overtooning.jar.query) {
+            overtooning.query();
+        }
+        
+        overtooning.addLog('[overtooning.run] End.');
+        //overtooning.menu.console();
+    },
+
+    assign: {
+        generic: function(data) {
+            overtooning.jar.node.addNode(data.assign, data.node, data.path);
+            if(overtooning.jar.node.value(data.assign)) {
+                overtooning.jar.node.value(data.assign, overtooning.jar.node.value(data.assign), data.assign == 'webtoonBlurb' ? true : false);
+            }
+        },
+        webtoonId: function(data) { // no need to add node.
+            if(!overtooning.jar.node.value('webtoonId')) {
+                overtooning.jar.node.value('webtoonId', overtooning.value(data.node));
+            }
+        },
+        chapterId: function(data) { // no need to add node.
+            if(!overtooning.jar.node.value('chapterId')) {
+                overtooning.jar.node.value('chapterId', overtooning.value(data.node));
+            }
+        },
+        overtooning: function(data) { // simple setup
+            overtooning.jar.node.value('overtooning', '1');
             var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.setAttribute('viewBox', '0 0 64 64');
             svg.setAttribute('style', 'width: 100%; height: 100%; overflow: visible;');
@@ -2131,388 +684,1413 @@ var overlayLoader = {
                 document.oncontextmenu = null;
                 document.onselectstart = null;
                 //end;
-                var logs = overlayLoader.create('div', {});
-                for(var i = 0; i < overlayLoader.log.length; i++) {
-                    logs.appendChild(overlayLoader.create('p', {textContent: overlayLoader.log[i], style: 'padding: 0 1em;'}));
-                }
-                overlayLoader.console(logs);
-            }
+               overtooning.menu.log();
+            };
             var path = document.createElementNS(svg.namespaceURI, 'path');
             path.setAttribute('d', 'M32 4c18 0 32 12 32 26s-14 26-32 26c-2 0-3 0-5 0-7 7-15 8-23 8v-2c4-2 8-6 8-10 0-1 0-1 0-2-7-5-12-12-12-20 0-14 14-26 32-26zM48 25l-11-2-5-10-5 10-11 2 8 8-2 11 10-5 10 5-2-11 8-8z');
             svg.appendChild(path);
-            this.vars.menu.node.appendChild(svg);
-        }
-        //-- localStorage and CORS request launch.
-        //-- overloaderData {feedList, webtoonList}
-        try {this.data = JSON.parse(localStorage.getItem('overloaderData'));}
-        catch(e) {this.data = this.defaultData;}
-        if(!this.data) {
-            this.data = this.defaultData;
-        }
-        //this.webtoonList
-        var accessFeed = [];
-        if(this.vars.webtoonId) { //chapter page, or chapterList
-            for(var i = 0; i < this.data.webtoonList.length; i++) {
-                if(this.data.webtoonList[i].wI == this.value(this.vars.webtoonId)) {
-                    this.vars.internalWebtoonId = i;
-                    accessFeed = this.data.webtoonList[i].fL;
-                    if(this.vars.webtoonBlurb && this.vars.webtoonBlurb.node) {
-                        this.vars.webtoonBlurb.node.textContent = ' ';
+            data.node.appendChild(svg);
+        },
+        webtoonList: function(data) {
+            overtooning.jar.node.addNode(data.assign, data.node, data.path);
+            delete data.node;
+            data.order = true;
+            overtooning.jar.node.routine(data.assign, overtooning.webtoonList, data);
+        },
+        chapterList: function(data) {
+            overtooning.jar.node.addNode(data.assign, data.node, data.path);
+            delete data.node;
+            overtooning.jar.node.routine(data.assign, overtooning.chapterList, data);
+        },
+        imageList: function(data) {
+            //overtooning.addLog('[overtooning.assign] Call to imageList');
+            if(overtooning.jar.busy) { //nope, but prioritize this function over loadImage() timer.
+                if(overtooning.jar.timer) {
+                    window.clearTimeout(overtooning.jar.timer);
+                    overtooning.jar.timer = false;
+                }
+                if(!overtooning.jar.interval) {
+                    overtooning.jar.interval = window.setInterval(overtooning.assign.imageList, 1000);
+                }
+                overtooning.addLog('[overtooning.canvas] Cancelled: already busy loading an image');
+                return false;
+            }
+            if(!overtooning.storage.config.memoryLimit) { //no need to keep interval if no memory limit.
+                window.clearInterval(overtooning.jar.interval);
+                overtooning.jar.interval = false;
+            } else if(!overtooning.jar.interval){
+                overtooning.jar.interval = window.setInterval(overtooning.assign.imageList, 1000);
+            }
+            //console.log('[imageList] running');
+            //clean canvas list.
+            var replaceCanvas = [];
+            for(var i = overtooning.jar.canvas.length -1; i > -1; i--) {
+                if(document.contains(overtooning.jar.canvas[i].ref)) {
+                    replaceCanvas.push(overtooning.jar.canvas[i]);
+                } else {
+                    overtooning.jar.canvas[i].ref.src = overtooning.jar.pixel;
+                    overtooning.jar.canvas[i].ref = null;
+                    if(overtooning.jar.canvas[i].node) {
+                        overtooning.jar.canvas[i].node.textContent = '';
+                        overtooning.jar.canvas[i].node = null;
                     }
-                    this.value(this.vars.webtoonTitle, this.data.webtoonList[i].wT);
-                    this.value(this.vars.webtoonAuthor, this.data.webtoonList[i].wA);
-                    this.value(this.vars.webtoonBlurb, this.data.webtoonList[i].wB);
-                    for(var j = 0; j < accessFeed.length; j++) {
-                        this.queries.push({feedID: accessFeed[j]});
+                    overtooning.jar.canvas[i].activeNode = null;
+                }
+            }
+            overtooning.jar.canvas = replaceCanvas;
+            replaceCanvas = [];
+
+            //launch analysis routine which populates overtooning.jar.canvas.
+            if(data) {
+                overtooning.jar.node.addNode(data.assign, data.node, data.path);
+                overtooning.jar.node.routine(data.assign, overtooning.imageList, data);
+                overtooning.jar.node.nodeList.imageList = []; //ugly but we don't need it.
+                //data.node = first node, lastNode = last node. (we have "next").
+                overtooning.jar.node.routineList.imageList.args.lastNode = overtooning.jar.canvas[overtooning.jar.canvas.length-1].ref;
+            } else {
+                var test = overtooning.fetch(overtooning.jar.node.routineList.imageList.args.path);
+                if(test != overtooning.jar.node.routineList.imageList.args.node) { //different first or last node!
+                    overtooning.jar.node.routineList.imageList.args.item = 1;
+                    overtooning.jar.node.routine('imageList', overtooning.imageList, overtooning.jar.node.routineList.imageList.args);
+                    overtooning.addLog('[overtooning.canvas] Image list updated (new starting node).');
+                } else if(test = overtooning.next(overtooning.jar.node.routineList.imageList.args.lastNode, overtooning.jar.node.routineList.imageList.args.next)) {
+                    while(test) {
+                        test = test.node;
+                        overtooning.jar.node.routineList.imageList.args.item++;
+                        overtooning.jar.node.routineList.imageList.args.lastNode = test;
+                        overtooning.imageList(test, overtooning.jar.node.routineList.imageList.args);
+                        test = overtooning.next(test, overtooning.jar.node.routineList.imageList.args.next);
                     }
+                    overtooning.addLog('[overtooning.canvas] Image list updated (new ending node).');
+                }
+            }
+
+            var position = {top: 0, left: 0, width: 0, height: 0},
+                comparer = function(a, b) {
+                    if(a.distance == -1) return 1;
+                    if(b.distance == -1) return -1;
+                    if(a.distance < b.distance) return -1;
+                    if(a.distance > b.distance) return 1;
+                    return 0;
+                };
+            //Orders images in current viewing order, relative to top-left scroll value.
+            for(var i = overtooning.jar.canvas.length-1; i > -1; i--) {
+                if(overtooning.jar.canvas[i].activeNode.style.display == 'none') {
+                    overtooning.jar.canvas[i].distance = -1;
+                } else {
+                    position = overtooning.jar.canvas[i].activeNode.getBoundingClientRect();
+                    overtooning.jar.canvas[i].distance = Math.pow(position.top, 2) + Math.pow(position.left, 2);
+                }
+                overtooning.jar.canvas[i].top = position.top;
+                overtooning.jar.canvas[i].left = position.left;
+                replaceCanvas.splice(overtooning.pivot(overtooning.jar.canvas[i], replaceCanvas, comparer) +1, 0, overtooning.jar.canvas[i]);
+            }
+            overtooning.jar.canvas = replaceCanvas;
+            replaceCanvas = [];
+            //overtooning.addLog('yeah '+ JSON.stringify(overtooning.jar.canvas));//do something.
+            /*//var string = '';
+            for(var i= 0; i < 6; i++) {
+                string += ' ' +  overtooning.jar.canvas[i].item + '('+overtooning.jar.canvas[i].loaded+')';
+            }
+            //console.log('[imageList] order ' + string);
+            //*/
+            overtooning.loadImage();
+        }
+    },
+    
+    webtoonList: function(node, args) {
+        if(args && args.innerPath && args.innerPath.webtoonId) {
+            var webtoonId = overtooning.fetch(args.innerPath.webtoonId, node, true),
+                webtoonInfo = false;
+            webtoonId = webtoonId ? overtooning.value(webtoonId) : false;
+            for(var i = overtooning.storage.webtoon.length -1; i > -1; i--) {
+                if(overtooning.storage.webtoon[i].wI == webtoonId) {
+                    webtoonInfo = overtooning.storage.webtoon[i];
                     break;
                 }
             }
-        }
-        var MTime = this.MTime();
-        for(var j = 0; j < this.data.feedList.length; j++) {
-            if(accessFeed.indexOf(j) == -1 && this.data.feedList[j].lastUpdate + 60 * 24 * 7 < MTime) {
-                overlayLoader.addLog('[overlayLoader.query] Ping feed: ' + this.data.feedList[j].url + ' (' + j + ')');
-                this.queries.push({feedID: j, udpdate: true});
-            }
-        }
-        overlayLoader.addLog('[overlayLoader.path] Queries to be made: ' + this.queries.length);
-        /*if(this.vars.imageList && this.vars.imageList.node) {
-            if(this.vars.startingImage) {//pageFlip
-                this.vars.shuffleImage = [0, 2, -1, -1, -6, -6];
-            }
-            this.vars.imageList.innerPath.imageId = (this.vars.imageList.innerPath.imageId ? this.vars.imageList.innerPath.imageId : 0);
-            this.canvas();
-        }*/
-
-        if(this.vars.webtoonList) {
-            if(!(this.vars.webtoonList instanceof Array)) {
-                this.vars.webtoonList.assign = undefined;
-                this.listUpdate(this.vars.webtoonList);
-            } else {
-                for(var cursor = 0; cursor < this.vars.webtoonList.length; cursor++) {
-                    this.vars.webtoonList[cursor].assign = undefined;
-                    this.listUpdate(this.vars.webtoonList[cursor]);
-                }
-            }
-        }
-        overlayLoader.addLog("[overlayLoader.run] End.");
-        overlayLoader.resource.rawImage.onload = function() {
-            overlayLoader.resource.busy = true;
-            if(overlayLoader.vars.imageList.node.nextSibling && overlayLoader.vars.imageList.node.nextSibling.className == 'toonreader_overlay') { //probably pageflip (refresh process).
-                if(window.location.hostname == 'm.comic.naver.com') {
-                    overlayLoader.addLog('[overlayLoader.canvas] ('+overlayLoader.vars.imageId+') Canvas already loaded.');
-                    overlayLoader.getNextImage();
-                    return true;
-                } else { //pageflip
-                    overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.nextSibling);
-                }
-            }
-            var tmpImageId = overlayLoader.vars.imageId;
-            if(overlayLoader.vars.shuffleImage && overlayLoader.vars.shuffleImage[tmpImageId]) {
-                tmpImageId = tmpImageId + parseInt(overlayLoader.vars.shuffleImage[tmpImageId], 10);
-            }
-            if(overlayLoader.vars.startingImage) {
-                tmpImageId += parseInt(overlayLoader.value(overlayLoader.vars.startingImage), 10);
-            }
-            overlayLoader.resource.imageId = tmpImageId +1;
-            overlayLoader.cors(
-                overlayLoader.resource.generalUrl.replace('{imgNumber}', overlayLoader.digit(overlayLoader.resource.imageId)),
-                'GET', 'arraybuffer', null,
-                function(data) {
-                    var byteArray = new Uint8Array(data);
-                    var binaryString = '';
-                    for (var i = 0; i < byteArray.byteLength; i++) {
-                        binaryString += String.fromCharCode(byteArray[i]); //extracting the bytes
+            if(webtoonInfo) {
+                shortProperty = {webtoonTitle: 'wT', webtoonAuthor: 'wA', webtoonBlurb: 'wB'};
+                for(property in shortProperty) {
+                    if(args.innerPath[property]) {
+                        var subNode = overtooning.fetch(args.innerPath[property], node, true);
+                        if(subNode) {
+                            overtooning.value(subNode, webtoonInfo[shortProperty[property]]);
+                        }
                     }
-                    if(overlayLoader.resource.salt) {
-                        binaryString = overlayLoader.shuffle(binaryString);
-                    }
-                    var base64 = window.btoa(binaryString); //creating base64 string
-                    overlayLoader.resource.overlay.src = "data:image/png;base64," + base64;
-                },
-                function(error) {
-                    overlayLoader.addLog('[overlayLoader.canvas] ('+overlayLoader.vars.imageId+') CORS failed.');
-                    overlayLoader.getNextImage();
                 }
-            );
-        };
-        overlayLoader.resource.rawImage.onerror = function() {
-            overlayLoader.addLog('[overlayLoader.canvas] Raw image '+overlayLoader.vars.imageId+' has problems loading.');
-            overlayLoader.getNextImage();
-        };
-        
-        var ctx = document.createElement("canvas").getContext("2d"),
-            dpr = window.devicePixelRatio || 1,
-            bsr = ctx.webkitBackingStorePixelRatio ||
-                  ctx.mozBackingStorePixelRatio ||
-                  ctx.msBackingStorePixelRatio ||
-                  ctx.oBackingStorePixelRatio ||
-                  ctx.backingStorePixelRatio || 1;
-        overlayLoader.resource.pixelRatio = dpr / bsr;
-        
-        overlayLoader.resource.overlay.onload = function() {
-            var overlayContainer = overlayLoader.create('div', {className: 'toonreader_overlay',
-                style: 'position: relative; height: ' + overlayLoader.vars.imageList.node.height + 'px;' + (overlayLoader.vars.imageList.innerPath && overlayLoader.vars.imageList.innerPath.keepOriginal ? ' margin-top: -' + overlayLoader.vars.imageList.node.height + 'px;' : '') + ' width: ' + overlayLoader.vars.imageList.node.width + 'px;' + (overlayLoader.vars.imageList.innerPath && overlayLoader.vars.imageList.innerPath.style ? overlayLoader.vars.imageList.innerPath.style : '')}
-            );
-            overlayLoader.vars.imageList.node.parentNode.insertBefore(overlayContainer, overlayLoader.vars.imageList.node.nextSibling);
-            // Memory release (?).
-            //overlayLoader.vars.imageList.node.setAttribute('data-legacy-src', overlayLoader.vars.imageList.node.src);
-            //overlayLoader.vars.imageList.node.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>';
-
-            var start = 0, naturalCanvas;
-            while(start != overlayLoader.resource.rawImage.naturalHeight) {
-                if(start > 0) {
-                    start -= Math.floor((Math.random() * 15) + 3);
-                }
-                var height = 500;
-                if(start + height > overlayLoader.resource.rawImage.naturalHeight) {
-                    height = overlayLoader.resource.rawImage.naturalHeight - start;
-                }
-                naturalCanvas = overlayLoader.create('canvas', {width: overlayLoader.resource.rawImage.naturalWidth, height: height, style: 'position: absolute; top: ' + start + 'px; left: 0;'});
-                naturalCanvas.getContext('2d').drawImage(overlayLoader.resource.rawImage, 0, start, overlayLoader.resource.rawImage.naturalWidth, height, 0, 0, overlayLoader.resource.rawImage.naturalWidth, height);
-                naturalCanvas.getContext('2d').drawImage(overlayLoader.resource.overlay, 0, start, overlayLoader.resource.rawImage.naturalWidth, height,  0, 0, overlayLoader.resource.rawImage.naturalWidth, height);
-                
-                if(overlayLoader.vars.imageList.node.height != overlayLoader.resource.rawImage.naturalHeight || overlayLoader.resource.pixelRatio != 1) {
-                    var heightMod = overlayLoader.vars.imageList.node.height / overlayLoader.resource.rawImage.naturalHeight;
-                    var widthMod = overlayLoader.vars.imageList.node.width / overlayLoader.resource.rawImage.naturalWidth;
-                    
-                    if(start == 0) {
-                        overlayLoader.addLog('[overlayLoader.canvas] Adjusting size: Width '+widthMod+' - Height '+heightMod+' - Retina '+overlayLoader.resource.pixelRatio);
-                    }
-                    
-                    var copyCanvas = overlayLoader.create('canvas', {
-                        width: Math.round(naturalCanvas.width * widthMod * overlayLoader.resource.pixelRatio),
-                        height: Math.round(naturalCanvas.height * widthMod * overlayLoader.resource.pixelRatio),
-                        style: 'position: absolute; top: ' + Math.round(start * heightMod) + 'px; left: 0;'}
-                    );
-                    copyCanvas.style.width =  overlayLoader.vars.imageList.node.width +'px';
-                    copyCanvas.style.height =  Math.round(height * heightMod) +'px';
-                    copyCanvas.getContext('2d').setTransform(widthMod * overlayLoader.resource.pixelRatio, 0, 0, heightMod * overlayLoader.resource.pixelRatio, 0, 0);
-                    copyCanvas.getContext('2d').drawImage(naturalCanvas, 0, 0);
-                    naturalCanvas = copyCanvas;
-                    delete copyCanvas;
-                }
-                overlayContainer.appendChild(naturalCanvas);
-                start += height;
-            }
-            
-            overlayContainer.appendChild(overlayLoader.create('div', {style: 'position: absolute; top: 0; left: 0; width: 100%; height: 100%;'})); //right-click added protection.
-            if(!overlayLoader.vars.imageList.innerPath || !overlayLoader.vars.imageList.innerPath.keepOriginal) {
-                overlayLoader.vars.imageList.node = overlayLoader.vars.imageList.node.nextSibling;
-                overlayLoader.vars.imageList.node.parentNode.removeChild(overlayLoader.vars.imageList.node.previousSibling);
-            }
-            overlayLoader.getNextImage();
-        };
-        overlayLoader.resource.overlay.onerror = function() {
-            overlayLoader.addLog('[overlayLoader.canvas] overlay '+overlayLoader.vars.imageId+' could not load, check the salt.');
-            overlayLoader.getNextImage();
-        };
-        // ---------------------------------------------------
-        this.shiftQueries(false, true);
-        return true;
+                return true;
+            }    
+        }
+        return false;
     },
     
-    console: function(element) {
-        var console = overlayLoader.create('div', {style: 'position: absolute; width: 80%; min-height: 80%; background: #DDD; top: 4em; left: 10%; z-index: 99999; text-align: left; border: 1px solid black; border-radius: 1em;'},
-            overlayLoader.create('div', {style: 'padding: 0.5em 1em;; position: relative; background: white; font-weight: bold; border-bottom: 1px solid black; margin-bottom: 1em; border-radius: 1em 1em 0 0;'},
-                overlayLoader.create('span', {style: 'font-size: 1.1em;', textContent: 'OverTooning CONSOLE'}),
-                //overlayLoader.create('span', {style: 'display: inline-block; padding: 0 1em;', textContent: 'Reset'}),
-                //overlayLoader.create('span', {style: 'display: inline-block; padding: 0 1em;', textContent: 'Manager'}),
-                overlayLoader.create('span', {style: 'cursor: pointer; position: absolute; display: inline-block; width: 10%; text-align: right; right: 1em;', textContent: 'close', onclick: function(){document.body.removeChild(this.parentNode.parentNode);}})
-            ),
-            element ? element : null
-        );
-        document.body.appendChild(console);
+    chapterList: function(node, args) {
+        if(args && args.innerPath && args.innerPath.chapterId && overtooning.jar.chapterList) { // args chapterList is to be added on CORS request
+            var chapterId = overtooning.fetch(args.innerPath.chapterId, node, true),
+                chapterInfo = false;
+            chapterId = chapterId ? overtooning.value(chapterId) : false;
+            for(var i = overtooning.jar.chapterList.length -1; i > -1; i--) {
+                if(overtooning.jar.chapterList[i].id == chapterId) {
+                    chapterInfo = overtooning.jar.chapterList[i];
+                    break;
+                }
+            }
+            if(chapterInfo) {
+               var subNode = overtooning.fetch(args.innerPath.chapterTitle, node, true);
+                if(subNode) {
+                    overtooning.value(subNode, chapterInfo.title);
+                }
+                return true;
+            }
+        }
+        return false;
+    },
+    
+    imageList: function(node, args) {
+        var index = -1,
+            src = false;
+        
+        for(var i = overtooning.jar.canvas.length -1; i > -1; i--) {
+            if(overtooning.jar.canvas[i].ref == node) {
+                index = i;
+                break;
+            }
+        }
+        if(index == -1) {
+            overtooning.jar.canvas.push({ref: node});
+            index = overtooning.jar.canvas.length -1;
+        }
+
+        if(!overtooning.jar.canvas[index].src) {
+            if(args.innerPath && args.innerPath.src && node.getAttribute(args.innerPath.src)) {
+                overtooning.jar.canvas[index].src = node.getAttribute(args.innerPath.src);
+                overtooning.jar.canvas[index].attribute = args.innerPath.src;
+            } else {
+                overtooning.jar.canvas[index].src = node.src;
+            }
+            if(overtooning.storage.config.lazyLoading && node.src == overtooning.jar.canvas[index].src) {
+                node.src = overtooning.jar.pixel;
+            }
+        }
+        
+        if(!overtooning.jar.canvas[index].activeNode) {
+            overtooning.jar.canvas[index].activeNode = overtooning.jar.canvas[index].ref
+        }
+
+        overtooning.jar.canvas[index].style = args.innerPath && args.innerPath.style ? args.innerPath.style : '';
+        //more intricate way to calculate imageNumber (distord or depending on page node) here.
+        overtooning.jar.canvas[index].item = args.item;
+    },
+    
+    loadImage: function() {
+        if(overtooning.jar.timer) {
+            window.clearTimeout(overtooning.jar.timer);
+            overtooning.jar.timer = false;
+        }
+        if(overtooning.jar.busy) {
+            return false;
+        }
+        var workToDo = false, fullyLoaded = true;
+        for(var i = 0; i < overtooning.jar.canvas.length; i++) {
+            if(!overtooning.jar.canvas[i].loaded) {
+                if( overtooning.jar.canvas[i].ref.src == overtooning.jar.pixel || 
+                    overtooning.jar.canvas[i].ref.src == ('data:image/svg+xml,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="'+overtooning.jar.canvas[i].width+'"%20height="'+overtooning.jar.canvas[i].height+'"></svg>') || overtooning.jar.canvas[i].ref.src == overtooning.jar.canvas[i].src) {
+                    overtooning.jar.currentImage = i;
+                    workToDo = true;
+                    break;
+                } else {
+                    fullyLoaded = false;
+                }
+            }
+        }
+        if(!workToDo) {
+            if(!fullyLoaded) {
+                overtooning.jar.timer = window.setTimeout(overtooning.loadImage, 1000);
+            } else {
+                overtooning.addLog('[overtooning.canvas] All images have been loaded. No lazyloading.');
+            }
+            return false;
+        }
+        //free memory
+        if(overtooning.storage.config.memoryLimit) {
+            var megapixel = overtooning.jar.maxDimension,
+                cursor = overtooning.jar.canvas.length -1;
+            if(overtooning.jar.canvas[overtooning.jar.currentImage].width) {
+                megapixel = overtooning.jar.canvas[overtooning.jar.currentImage].width * overtooning.jar.canvas[overtooning.jar.currentImage].height;
+            }
+            while(cursor > overtooning.jar.currentImage && overtooning.jar.bufferSize + megapixel > overtooning.storage.config.memoryLimit) {
+                var rect = overtooning.jar.canvas[cursor].activeNode.getBoundingClientRect();
+                var isVisible = (
+                    rect.top < (window.innerHeight || document.documentElement.clientHeight) &&
+                    rect.left < (window.innerWidth || document.documentElement.clientWidth) &&
+                    rect.bottom > 0 &&
+                    rect.right > 0
+                );
+                if(overtooning.jar.canvas[cursor].loaded && !isVisible) {
+                    overtooning.addLog('[overtooning.canvas.memoryLimit] Unloading image ' + overtooning.jar.canvas[cursor].item);
+                    overtooning.jar.canvas[cursor].loaded = false;
+                    overtooning.jar.canvas[cursor].ref.src = 'data:image/svg+xml,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="'+overtooning.jar.canvas[cursor].width+'"%20height="'+overtooning.jar.canvas[cursor].height+'"></svg>';
+                    if(overtooning.jar.canvas[cursor].node) {
+                        overtooning.jar.canvas[cursor].node.textContent = '';
+                    }
+                    overtooning.jar.canvas[cursor].node.className = 'otoon-overlay hidden';
+                    overtooning.jar.bufferSize -= overtooning.jar.canvas[cursor].width * overtooning.jar.canvas[cursor].height;
+                }
+                cursor--;
+            }
+            if(overtooning.jar.bufferSize && overtooning.jar.bufferSize + megapixel > overtooning.storage.config.memoryLimit) {
+                return false;
+            }
+        }
+        overtooning.jar.busy = true;
+        overtooning.jar.rawImage.src = overtooning.jar.canvas[overtooning.jar.currentImage].src;
+    },
+    
+    rawImageOnLoad: function() {
+        var pointer = overtooning.jar.canvas[overtooning.jar.currentImage];
+        if(pointer.ref.src != overtooning.jar.rawImage.src) { //our lazyloading or their
+            overtooning.addLog('[overtooning.canvas] Loading image ' + pointer.item);
+            pointer.ref.src = overtooning.jar.rawImage.src;
+            /*window.setTimeout(overtooning.jar.rawImage.onload, 5000);
+            return false;*/
+        }
+        if(document.readyState != "complete") {
+            overtooning.addLog('[overtooning.canvas] still loading...');
+            window.setTimeout(overtooning.jar.rawImage.onload, 100);
+            return;
+        } 
+        pointer.loaded = true;
+        if(pointer.attribute) { // their lazyloading, let's break it.
+            pointer.ref.removeAttribute(pointer.attribute);
+            delete pointer.attribute;
+        }
+        
+        pointer.width = overtooning.jar.rawImage.naturalWidth;
+        pointer.height = overtooning.jar.rawImage.naturalHeight;
+        pointer.ref.width = overtooning.jar.rawImage.naturalWidth;
+        pointer.ref.height = overtooning.jar.rawImage.naturalHeight;
+        
+        var mgpxl = overtooning.jar.rawImage.naturalWidth * overtooning.jar.rawImage.naturalHeight;
+        if (mgpxl > overtooning.jar.maxDimension) {
+            overtooning.jar.maxDimension = mgpxl;
+        }
+        overtooning.jar.bufferSize += mgpxl;
+
+        //pointer.clientWidth = pointer.activeNode.clientWidth;
+        //pointer.clientHeight = pointer.activeNode.clientHeight;
+
+        if(overtooning.jar.generalUrl) {
+            window.setTimeout(function() {overtooning.jar.overlay.src = overtooning.jar.generalUrl.replace('{imgNumber}', overtooning.digit(pointer.item, 2));}, 200);
+            return true;
+        }
+        overtooning.jar.busy = false;
+        if(!overtooning.storage.config.memoryLimit || (overtooning.jar.bufferSize + overtooning.jar.maxDimension <= overtooning.storage.config.memoryLimit)) {
+            window.setTimeout(overtooning.assign.imageList, 200);
+        }
+    },
+    
+    rawImageOnError: function() {
+        overtooning.addLog('[overtooning.canvas] Error while loading image ' + overtooning.jar.canvas[overtooning.jar.currentImage].item);
+        overtooning.jar.canvas[overtooning.jar.currentImage].ref.src = this.src;
+        overtooning.jar.canvas[overtooning.jar.currentImage].loaded = true;
+        overtooning.jar.busy = false;
+        if(!overtooning.storage.config.memoryLimit || (overtooning.jar.bufferSize + overtooning.jar.maxDimension <= overtooning.storage.config.memoryLimit)) {
+            window.setTimeout(overtooning.assign.imageList, 200);
+        }
+    },
+    
+    overlayOnLoad: function() {
+        var pointer = overtooning.jar.canvas[overtooning.jar.currentImage];
+        overtooning.addLog('[overtooning.canvas] Loading overlay ' + pointer.item);
+        if(!pointer.node) {
+            pointer.node = overtooning.create('div', {
+                className: 'otoon-overlay'/*,
+                style: 'position: relative;'+
+                    ' width: ' + pointer.activeNode.clientWidth + 'px;'+
+                    ' height: ' + pointer.activeNode.clientHeight + 'px;'+
+                    pointer.style
+                */
+                }
+            );
+        } else {
+            pointer.node.className = 'otoon-overlay';
+        }
+
+        var mode = pointer.height >= pointer.width ? 'height' : 'width',
+            start = 0,
+            stop = pointer[mode],
+            naturalCanvas,
+            increment = Math.floor(1024 * 1024 / (mode == 'height' ? pointer.width : pointer.height)), //max 1 megapixel per canvas.
+            dim = {height: pointer.height, width: pointer.width},
+            cursor = {height: 0, width: 0};
+        // possible improvement for the memory management mode:
+        //  instead of filling to to bottom or left to right, check if the opposite is better each time
+        while(start != stop) {
+            /*if(start > 0) {
+                start -= Math.floor(Math.random()*10 + 5);
+            }*/
+            if(start + increment > stop) {
+                increment = stop - start;
+            }
+            dim[mode] = increment;
+            cursor[mode] = start;
+            
+            naturalCanvas = overtooning.create('canvas', {
+                width: dim.width, height: dim.height/*,
+                style: 'position: absolute; top: ' + cursor.height + 'px; left: '+ cursor.width +'px;'*/
+            });
+            naturalCanvas.getContext('2d').drawImage(
+                overtooning.jar.rawImage,
+                cursor.width, cursor.height,
+                dim.width, dim.height, 0, 0, dim.width, dim.height
+            );
+            naturalCanvas.getContext('2d').drawImage(
+                overtooning.jar.overlay,
+                cursor.width, cursor.height,
+                dim.width, dim.height, 0, 0, dim.width, dim.height
+            );
+            
+            if(/*pointer.activeNode.clientHeight != pointer.height ||*/ overtooning.jar.pixelRatio != 1) {
+                var heightMod = pointer.activeNode.clientHeight / pointer.height;
+                var widthMod = pointer.activeNode.clientWidth / pointer.width;
+                if(start == 0 && pointer.activeNode.clientHeight != pointer.height) {
+                    overtooning.addLog('[overtooning.canvas] Adjusting size for item '+pointer.item+': Width '+ pointer.activeNode.clientWidth +' / '+ pointer.width +' - Height '+ pointer.activeNode.clientHeight +' / '+ pointer.height);
+                }
+                var copyCanvas = overtooning.create('canvas', {
+                    width: Math.round(naturalCanvas.width * widthMod * overtooning.jar.pixelRatio),
+                    height: Math.round(naturalCanvas.height * widthMod * overtooning.jar.pixelRatio),
+                    /*style: 'position: absolute; top: ' + (cursor.height ? Math.round(cursor.height * heightMod) : 0) + 'px;'+
+                        ' left: ' + (cursor.width ? Math.round(cursor.width * widthMod) : 0) + 'px;'*/}
+                );
+                //copyCanvas.style.width =  mode == 'height' ? pointer.activeNode.clientWidth +'px' : Math.round(increment * widthMod) +'px';
+                //copyCanvas.style.height =  mode == 'height' ? Math.round(increment * heightMod) +'px' : pointer.activeNode.clientHeight +'px';
+                copyCanvas.getContext('2d').setTransform(widthMod * overtooning.jar.pixelRatio, 0, 0, heightMod * overtooning.jar.pixelRatio, 0, 0);
+                copyCanvas.getContext('2d').drawImage(naturalCanvas, 0, 0);
+                naturalCanvas = copyCanvas;
+                delete copyCanvas;
+            }
+            
+            pointer.node.appendChild(naturalCanvas);
+            start += increment;
+        }
+        
+        pointer.node.appendChild(overtooning.create('div', {style: 'position: absolute; top:0; left:0; width: 100%; height: 100%;'}));
+        //free some memory maybe.
+        pointer.ref.src = 'data:image/svg+xml,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="'+pointer.width+'"%20height="'+pointer.height+'"></svg>';
+        //*//
+        overtooning.jar.onloadSave = overtooning.jar.rawImage.onload;
+        overtooning.jar.rawImage.onload = function() {overtooning.jar.rawImage.onload = overtooning.jar.onloadSave; overtooning.jar.onloadSave = null;};
+        overtooning.jar.rawImage.src = overtooning.jar.pixel;
+        //*/
+        if(pointer.ref.previousSibling != pointer.node) {
+            pointer.ref.parentNode.insertBefore(pointer.node, pointer.ref);
+        }
+        pointer.activeNode = pointer.node;
+        overtooning.jar.busy = false;
+        if(!overtooning.storage.config.memoryLimit || (overtooning.jar.bufferSize + overtooning.jar.maxDimension <= overtooning.storage.config.memoryLimit)) {
+            window.setTimeout(overtooning.assign.imageList, 200);
+        }
+    },
+    
+    overlayOnError: function() {
+        overtooning.addLog('[overtooning.canvas] Error while loading overlay ' + overtooning.jar.canvas[overtooning.jar.currentImage].item);
+        overtooning.jar.busy = false;
+        if(!overtooning.storage.config.memoryLimit || (overtooning.jar.bufferSize + overtooning.jar.maxDimension <= overtooning.storage.config.memoryLimit)) {
+            window.setTimeout(overtooning.assign.imageList, 200);
+        }
+    },
+    
+    runTemplate: function(template) {
+        if(!template || !template.length) {
+            return false;
+        }
+        for(var index = 0; index < template.length; index++) {
+            console.log(template[index].path);
+            var node = overtooning.fetch(template[index].path);
+            if(node) {
+                console.log('node found');
+                console.log(node);
+                node = overtooning.runCommand(node, template[index]); //not possible to call by reference node.
+                if(template[index].next && !template[index].assign) { // assign nexts are managed through their own way.
+                    var item = 1;
+                    while(next = overtooning.next(node, template[index].next)) {
+                        template[index].item = item;
+                        node = overtooning.runCommand(next.node, template[index]); //we don't care about newList, so we don't really care about the whole next object.
+                        item++;
+                    }
+                }
+            }
+            console.log('next');
+        }
+        template = [];
+    },
+    
+    next: function(node, nextArray) {
+        if(node && nextArray && nextArray[0]) {
+            var saveNode = node;
+            var currentNode = overtooning.fetch(nextArray[0], saveNode, true);
+            for(var cursor = 1; !currentNode && cursor < nextArray.length; cursor++) {
+                currentNode = overtooning.fetch(nextArray[cursor], saveNode, true);
+            }
+            if(currentNode) {
+                return {node: currentNode, newList: (cursor > 1 && cursor == nextArray.length)?true:false};
+            }
+        }
+        return false;
+    },
+    
+    pivot: function(element, array, comparer, start, end) {
+        if(array.length === 0)
+            return -1;
+        
+        start = start || 0;
+        end = end || array.length;
+        var pivot = (start + end) >> 1,
+            c = comparer(element, array[pivot]);
+
+        if(end - start <= 1) return c == -1 ? pivot -1 : pivot;
+        switch(c) {
+            case -1: return overtooning.pivot(element, array, comparer, start, pivot);
+            case 0: return pivot;
+            case 1: return overtooning.pivot(element, array, comparer, pivot, end);
+        }
+    },
+
+    runCommand: function (node, command) {
+        if(command.assign && command.assign == 'overtooning') {
+            node.parentNode.insertBefore(overtooning.create('div', {}),
+                node.nextSibling);
+            node = node.nextSibling;
+        } else if(command.new && command.tagName) {
+             node.parentNode.insertBefore(overtooning.create(command.tagName, {}),
+                node.nextSibling);
+            node = node.nextSibling;
+        }
+        if(command.tagName && node.nodeName != command.tagName) {
+            var copyNode = overtooning.create(command.tagName, {innerHTML: node.innerHTML ? node.innerHTML : ' '}); //insecure?
+            if(node.className) {
+                copyNode.className = node.className;
+            }
+            if(node.id) {
+                copyNode.id = node.id;
+            }
+            node.parentNode.insertBefore(copyNode, node);
+            node = node.previousSibling;
+            node.parentNode.removeChild(node.nextSibling);
+        }
+        if(command.className && node.className != command.className) {
+            if(!node.saveClass) {
+                node.saveClass = node.className;
+            }
+            node.className = command.className;
+        }
+        if(command.style) {
+            /*if(!node.saveStyle) {
+                node.saveStyle = node.getAttribute('style') || '';
+            }*/
+            node.setAttribute('style', (node.getAttribute('style') || '') + command.style);
+        }
+        if(command.assign) {
+            var property = overtooning.assign[command.assign] ? command.assign : 'generic';
+            overtooning.assign[property]({
+                node: node,
+                assign: command.assign,
+                path: command.path,
+                innerPath: command.innerPath ? command.innerPath : false,
+                next: command.next ? command.next : false,
+                multiple: command.multiple ? command.multiple : false,
+            });
+        } else if(command.translate) {
+            overtooning.translate(node, {
+                translate: command.translate,
+                into: command.into ? command.into : false,
+                item: command.item ? command.item : 0
+            });
+        }
+        return node;
+    },
+    
+    translate: function(node, data) {
+        if(!node || !data.translate) {
+            return false;
+        }
+
+        if(!data.translate.join) {
+            data.translate = [data.translate];
+        }
+        if(data.into && !data.into.join) {
+            data.into = [data.into];
+        }
+        //into = check and replace all words, no into = replace into translate[item]
+        if(data.into) {
+            var nodeValue = overtooning.value(node).split("\n");
+            for(var i = data.translate.length -1; i > -1; i--) {
+                for(var j = nodeValue.length -1; j > -1; j--) {
+                    nodeValue[j] = nodeValue[j].replace(data.translate[i], data.into[i] ? data.into[i] : data.translate[i]);
+                }
+                console.log(nodeValue);
+            }
+            console.log(nodeValue.join("\n"));
+            overtooning.value(node, nodeValue.join("\n"));
+        } else {
+            if(!data.item) {
+                data.item = 0;
+            }
+            if(data.translate[data.item]) {
+                overtooning.value(node, data.translate[data.item]);
+            }
+        }
+    },
+    
+    query: function(data) {
+        if(data) {
+            var query = overtooning.jar.query.shift();
+            var feedId = query.feedId;
+            overtooning.addLog('[overtooning.cors] Analyzing response.');
+            try {data = JSON.parse(data);}
+            catch(e) {
+                overtooning.addLog('[overtooning.json] Parsing failed.');
+                data = {};
+            }
+            if(!data.overtooning) {
+                overtooning.addLog('[overtooning.cors] Data not intented for overtooning.');
+                data = {};
+            }
+            delete data.overtooning;
+            overtooning.storage.feed[feedId].lastUpdate = overtooning.MTime();
+            //fix local dictionary
+            if(data.text && feedId == 0) { //instead of checking against 0, add a feedId template option?
+                for(var key in data.text) {
+                    if(overtooning.storage.text[key]) {
+                        overtooning.storage.text[key] = data.text[key];
+                    }
+                }
+                overtooning.storage.save('text');
+            }
+            if(data.template && feedId == 0) {
+                for(var index = 0; index < data.template.length; index++) {
+                    if(data.template[index].html) {
+                        for(var path = 0; path < data.template[index].html.length; path++) {
+                            //fix simple next value
+                            if(data.template[index].html[path].next && !data.template[index].html[path].next.join) {
+                                data.template[index].html[path].next = [data.template[index].html[path].next];
+                            }
+                            
+                            //fix short hand brackets in path and innerPath.
+                            var newPath = overtooning.openBrackets(data.template[index].html[path].path, data.template[index].html[path].next);
+                            if(newPath.next) {
+                                if(data.template[index].html[path].next) {
+                                    for(var i = 0; i < newPath.next.length; i++) {
+                                        data.template[index].html[path].next.push(newPath.next[i]);
+                                    }
+                                } else {
+                                    data.template[index].html[path].next = newPath.next;
+                                }
+                            }
+                            data.template[index].html[path].path = newPath.path;
+                            
+                            if(data.template[index].html[path].innerPath) {
+                                for(var property in data.template[index].html[path].innerPath) {
+                                    if(/^(webtoon|chapter)/.test(property)) {
+                                        newPath = overtooning.openBrackets(data.template[index].html[path].innerPath[property]);
+                                        data.template[index].html[path].innerPath[property] = newPath.path;
+                                    }
+                                }
+                            }
+                                                        
+                            //fix dictionary data into the template
+                            if(data.text && data.template[index].html[path].translate) {
+                                if(data.template[index].html[path].translate.join) {
+                                    for(var cursor = data.template[index].html[path].translate.length; cursor != 0; cursor--) {
+                                        var attribute = data.template[index].html[path].translate[cursor-1];
+                                        if(data.text[attribute]) {
+                                            data.template[index].html[path].translate[cursor-1] = data.text[attribute];
+                                        }
+                                    }
+                                } else {
+                                    var attribute = data.template[index].html[path].translate;
+                                    if(data.text[attribute]) {
+                                        data.template[index].html[path].translate = data.text[attribute];
+                                    }
+                                }
+                                if(data.template[index].html[path].into) {
+                                    if(data.template[index].html[path].into.join) {
+                                        for(var cursor = data.template[index].html[path].into.length; cursor != 0; cursor--) {
+                                            var attribute = data.template[index].html[path].into[cursor-1];
+                                            if(data.text[attribute]) {
+                                                data.template[index].html[path].into[cursor-1] = data.text[attribute];
+                                            }
+                                        }
+                                    } else {
+                                        var attribute = data.template[index].html[path].into;
+                                        if(data.text[attribute]) {
+                                            data.template[index].html[path].join = data.text[attribute];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if(data.template[index].css && data.template[index].css.join) {
+                        data.template[index].css = data.template[index].css.join('');
+                    }
+                }
+                overtooning.storage.template = data.template;
+                overtooning.storage.save('template');
+                delete data.template;
+                delete data.text;
+            }
+            
+
+            if(data.feedName && typeof data.feedName == 'string' && data.feedName.length < 50) {
+                overtooning.storage.feed[feedId].name = data.feedName;
+                delete data.feedName;
+            }
+            if(data.feedText && typeof data.feedText == 'string' && data.feedText.length < 256) {
+                overtooning.storage.feed[feedId].text = data.feedText;
+                delete data.feedText;
+            }
+            if(data.feedLang && data.feedLang[0]) {
+                overtooning.storage.feed[feedId].lang = [];
+                for(var i =0; i < data.feedLang.length; i++) {
+                    if(typeof data.feedLang[i] == 'string' && data.feedLang[i].length < 20) {
+                        overtooning.storage.feed[feedId].lang.push(data.feedLang[i]);
+                    }
+                }
+                delete data.feedLang;
+            }
+
+            if(data.add) {
+                if(!data.add[0] || !data.add[0].id) {
+                    data.add = [data.add];
+                }
+                
+                for(var i = data.add.length -1; i > -1; i--) {
+                    if( data.add[i].id && typeof data.add[i].id == 'string' && /^[0-9a-zA-Z_\-]+$/.test(data.add[i].id) &&
+                        data.add[i].title && typeof data.add[i].title == 'string' && data.add[i].title.length < 100 &&
+                        data.add[i].author && typeof data.add[i].author == 'string' && data.add[i].author.length < 100 &&
+                        (data.add[i].blurb ? typeof data.add[i].blurb == 'string' && data.add[i].blurb.length < 500 : true)) {
+                        var alreadyInserted = false;
+                        for(var j = overtooning.storage.webtoon.length -1; j > -1; j--) {
+                            if(overtooning.storage.webtoon[j].wI == data.add[i].id) {
+                                alreadyInserted = j;
+                                //ask if changes are to be committed!!!!!!!!!
+                                if(overtooning.storage.webtoon[j].fL.indexOf(feedId) == -1) {
+                                    overtooning.storage.webtoon[j].fL.push(feedId);
+                                }
+                                break;
+                            }
+                        }
+                        if(alreadyInserted === false) {
+                            overtooning.storage.webtoon.push({
+                                wI: data.add[i].id,
+                                wT: data.add[i].title,
+                                wA: data.add[i].author,
+                                wB: data.add[i].blurb ? data.add[i].blurb : '',
+                                fL: [feedId]
+                            });
+                        }
+                    }
+                }
+            }
+            if(data.remove) {
+                if(typeof data.remove != 'object') {
+                    data.remove = [data.remove];
+                }
+                for(var toRemove = data.remove.length-1; toRemove > -1; toRemove--) {
+                    for(var i = overtooning.storage.webtoon.length -1; i > -1; i--) {
+                        if(overtooning.storage.webtoon[i].wI == data.remove[toRemove]) {
+                            var removeFeed = overtooning.storage.webtoon[i].fL.indexOf(feedId);
+                            if(removeFeed != -1) {
+                                overtooning.storage.webtoon[i].fL.slice(removeFeed,1);
+                            }
+                            if(overtooning.storage.webtoon[i].fL.length == 0) {
+                                if(i == overtooning.jar.internalWebtoonId) {
+                                    overtooning.jar.internalWebtoonId = -1;
+                                }
+                                overtooning.storage.webtoon.slice(i,1);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            if(data.add || data.remove) {
+                delete data.add;
+                delete data.remove;
+                overtooning.storage.save('webtoon');
+                overtooning.jar.node.routine('webtoonList');
+            }
+
+            if(!query.ping && !overtooning.jar.scanlated) { //not just a ping, or no precedence found
+                if(data.chapterList) {
+                    if(data.chapterList instanceof Array) {
+                        if(!overtooning.jar.chapterList) {
+                            overtooning.jar.chapterList = data.chapterList;
+                        } else { //add only non existing chapters
+                            for(var i = data.chapterList.length -1; i > -1; i--) {
+                                var alreadyExisting = false;
+                                for(var j = overtooning.jar.chapterList.length -1; j > -1; j--) {
+                                    if(overtooning.jar.chapterList[j].id == data.chapterList[i].id) {
+                                        alreadyExisting = true;
+                                        break;
+                                    }
+                                }
+                                if(!alreadyExisting) {
+                                    overtooning.jar.chapterList.push(data.chapterList[i]);
+                                }
+                            }
+                        }
+                        overtooning.jar.node.routine('chapterList');
+                    }
+                    delete data.chapterList;
+                }
+
+                if(data.raw) {
+                    overtooning.forceRaw((data.raw.length && data.raw.length > 1) ? data.raw : null);
+                } else if(overtooning.jar.forceRaw) {
+                    overtooning.forceRaw();
+                }
+                if(overtooning.jar.internalWebtoonId != -1 && feedId == overtooning.storage.webtoon[overtooning.jar.internalWebtoonId].fL[0]) {
+                    var change = false;
+                    if(data.webtoonTitle) {
+                        if(data.webtoonTitle == overtooning.jar.node.value('webtoonTitle') || typeof data.webtoonTitle != 'string' || data.webtoonTitle.length > 100) {
+                            delete data.webtoonTitle;
+                        } else {
+                            overtooning.storage.webtoon[overtooning.jar.internalWebtoonId].wT = data.webtoonTitle;
+                            change = true;
+                        }
+                    }
+                    if(data.webtoonAuthor) {
+                        if(data.webtoonAuthor == overtooning.jar.node.value('webtoonAuthor') || typeof data.webtoonAuthor != 'string' || data.webtoonAuthor.length > 100) {
+                            delete data.webtoonAuthor;
+                        } else {
+                            overtooning.storage.webtoon[overtooning.jar.internalWebtoonId].wA = data.webtoonAuthor;
+                            change = true;
+                        }
+                    }
+                    if(data.webtoonBlurb) {
+                        if(data.webtoonBlurb == overtooning.jar.node.value('webtoonBlurb') || typeof data.webtoonBlurb != 'string' || data.webtoonBlurb.length > 500) {
+                            delete data.webtoonBlurb;
+                        } else {
+                            overtooning.storage.webtoon[overtooning.jar.internalWebtoonId].wB = data.webtoonBlurb;
+                            change = true;
+                        }
+                    }
+                    if(change) {
+                        overtooning.addLog('[overtooning.query] Webtoon data changed (id: '+ overtooning.storage.webtoon[overtooning.jar.internalWebtoonId].wI +').');
+                        overtooning.storage.save('webtoon');
+                    }
+                }
+
+                if(data.generalUrl) {
+                    overtooning.jar.scanlated = true;
+                    overtooning.jar.generalUrl = data.generalUrl;
+                    if(overtooning.jar.canvas) {
+                        for(var i = overtooning.jar.canvas.length -1; i > -1; i--) {
+                            overtooning.jar.canvas[i].loaded = false;
+                        }
+                    }
+                    overtooning.assign.imageList(); //hum...
+                    delete data.generalUrl;
+                }
+                
+                for(property in data) {
+                    if(typeof data[property] == 'string' && overtooning.jar.node.nodeList[property] && overtooning.jar.node.nodeList[property].length) {
+                        overtooning.jar.node.value(property, data[property], property == 'webtoonBlurb' ? true : false);
+                    }
+                }
+                
+                if(overtooning.scanlated) {
+                     while(overtooning.jar.query.length && !overtooning.jar.query[0].ping) {
+                        overtooning.query.shift();
+                    }
+                }
+            }
+        overtooning.storage.save('feed');
+        }
+        if(overtooning.jar.query.length) {
+            var j = overtooning.jar.query[0].feedId;
+            var queryUrl = overtooning.storage.feed[j].url + '/' + window.location.hostname + '/' +
+                (overtooning.jar.node.value('webtoonId') || '0') + '/' +
+                (overtooning.jar.node.value('chapterId') || '0') + '.json?' +
+                't=' + (overtooning.storage.feed[j].lastUpdate ? Math.abs(overtooning.MTime() - overtooning.storage.feed[j].lastUpdate+1) : 0).toString() +
+                (overtooning.storage.config.lang.length ? '&lang='+overtooning.storage.config.lang.join(',') : '');
+            overtooning.cors(
+                queryUrl, 'GET', '', '',
+                function(data) {overtooning.query(data);},
+                function(error) {overtooning.addLog('[overtooning.cors] '+error.message); overtooning.jar.query.shift(); overtooning.query();}
+            );
+        }
+    },
+    
+    forceRaw: function(raw) { //To be deprecated once webtoons.com finishes Cheese in the Trap S3.
+        // --------------------- DESKTOP NAVER ------------------------ //
+        if(window.location.hostname == 'comic.naver.com') {
+            // --------------------- chapter list ------------------------ //
+            if(new RegExp('list.nhn$').test(window.location.pathname)) {
+                overtooning.jar.run.stylesheet.textContent += '.otoon-virtual {cursor: pointer; display: inline-block; padding: 4px 8px 4px 7px; border: 1px solid #FFF; font: bold 13px Verdana !important; color: black;} .current {cursor: pointer}';
+                
+                var navNode = overtooning.fetch('#content/div.pagenavigation'),
+                    insertChapters = 0,
+                    chapterPerPage = 10;
+                navNode.textContent = '';
+                for(var i = overtooning.jar.chapterList.length -1; i > -1; i--) {
+                    if(overtooning.jar.chapterList[i].thumbnail) {
+                        insertChapters++;
+                    }
+                }
+                var maxPages = Math.floor(insertChapters / chapterPerPage);
+                for(var i = maxPages; i > -1; i--) {
+                    navNode.appendChild(overtooning.create('span', {className: 'otoon-virtual', onclick: overtooning.naverEvent.chapterList, textContent: maxPages - i+1}));
+                }
+                navNode.firstChild.click();
+            // --------------------- chapter ------------------------ //
+            } else if(new RegExp('detail.nhn$').test(window.location.pathname)) {
+                if(raw) {
+                    var refNode = overtooning.fetch(overtooning.jar.node.routineList.imageList.args.path),
+                        imgNode = false,
+                        parentLength = overtooning.jar.node.routineList.imageList.args.next[0].split('/').length;
+
+                    refNode.src = overtooning.jar.pixel + ' ';
+                    while(imgNode = overtooning.next(refNode, overtooning.jar.node.routineList.imageList.args.next)) {
+                        imgNode = imgNode.node;
+                        var upOneLevel = parentLength;
+                        while(upOneLevel > 1) {
+                            upOneLevel--;
+                            imgNode = imgNode.parentNode;
+                        }
+                        imgNode.parentNode.removeChild(imgNode);
+                        overtooning.jar.fetch.node = [];
+                    }
+
+                    if(parentLength > 1) {
+                        var parentNode = imgNode;
+                        while(parentLength > 0) {
+                            parentNode = parentNode.parentNode;
+                            parentLength--;
+                        }
+                        parentNode.parentNode.insertBefore(imgNode, parentNode);
+                        parentNode.parentNode.removeChild(parentNode);
+                    }
+
+                    overtooning.jar.node.routineList.imageList.args.next = ['+img'];
+
+                    if(raw.length > 1) {
+                        refNode.removeAttribute('width');
+                        refNode.removeAttribute('height');
+                        refNode.src = raw[1];
+                        if(raw[0] != '' && raw[0] != 'create') {
+                            refNode.setAttribute('style', raw[0]);
+                        }
+                    }
+                    for(var i = 2; i < raw.length; i++) {
+                        refNode.parentNode.insertBefore(
+                            overtooning.create('img', {src: raw[i]}),
+                            refNode.nextSibling);
+                        refNode = refNode.nextSibling;
+                        if(raw[0] != '') {
+                            refNode.setAttribute('style', raw[0]);
+                        }
+                    }
+                }
+                
+                
+                overtooning.assign.imageList = overtooning.jar.saveAssignImageList;
+                overtooning.jar.saveAssignImageList = null;
+                overtooning.runTemplate([overtooning.jar.node.routineList.imageList.args]);
+
+                overtooning.jar.run.stylesheet.textContent += '#comic_before, #comic_after {display: none !important;} .comic_lst .inner_lst {width: auto; overflow: hidden; white-space: nowrap;} .comic_lst .item {float: none; position: static; display: inline-block;} .comic_lst .item a[href="#"] {visibility: hidden;}';
+                var comic_move = document.getElementById('comic_move');
+                comic_move.textContent = '';
+                comic_move.appendChild(overtooning.create('span', {style: 'display: inline-block; width: 0; height: 40px; vertical-align: top; margin-left: -364px;'}));
+                for(var i = 0; i < 13; i++) {
+                    comic_move.appendChild(
+                        overtooning.create('div', {className: 'item'},
+                            overtooning.create('a', {href: '#', onclick: overtooning.naverEvent.loadHashLink},
+                                overtooning.create('span', {className: 'thmb'},
+                                    overtooning.create('img', {width: 70, height: 42, src: overtooning.jar.pixel})
+                                ),
+                                overtooning.create('span', {className: 'subj', textContent: ' '})
+                            )
+                        )
+                    );
+                }
+                var comic_before = document.getElementById('comic_before');
+                elClone = comic_before.cloneNode(true);
+                elClone.setAttribute('id', 'otoon_before');
+                elClone.onclick = overtooning.naverEvent.comicMoveLeft;
+                comic_before.parentNode.insertBefore(elClone, comic_before);
+                
+                var comic_after = document.getElementById('comic_after');
+                elClone = comic_after.cloneNode(true);
+                elClone.setAttribute('id', 'otoon_after');
+                elClone.onclick = overtooning.naverEvent.comicMoveRight;
+                comic_after.parentNode.insertBefore(elClone, comic_after);
+
+                var chapterId = parseInt(overtooning.jar.node.value('chapterId'));
+                overtooning.naverEvent.displayComicMove(chapterId);
+                
+                var index = -1;
+                for(var i = 0; i < overtooning.jar.chapterList.length; i++) {
+                    if(overtooning.jar.chapterList[i].id == chapterId) {
+                        index = i;
+                        break;
+                    }
+                }
+                
+                var navURL = {
+                    first: '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[0].id,
+                    last: '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[overtooning.jar.chapterList.length -1].id,
+                    previous: index > 0 ? '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[index -1].id : false,
+                    next: index < overtooning.jar.chapterList.length -1 ? '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[index +1].id : false
+                };
+
+               
+                var navBarNode = overtooning.fetch('#content/div/div.tit_area/div/div'),
+                    remoconNode = overtooning.fetch('#comicRemocon/div.remote_cont/div'),
+                    quickNavNode = document.getElementById('comicSequence').parentNode;
+
+                navBarNode.textContent = '';
+                if(remoconNode) {
+                    remoconNode.textContent = '';
+                }
+                remoconNode.textContent = '';
+                quickNavNode.textContent = '';
+                
+                quickNavNode.appendChild(overtooning.create('input', {id: 'comicSequence', type: 'text', style: 'width: 31px;', value: index+1, onclick: function() {this.focus(); return false;}}));
+                quickNavNode.appendChild(overtooning.create('span', {textContent: ' / '}));
+                quickNavNode.appendChild(overtooning.create('span', {className: 'total', textContent: overtooning.jar.chapterList.length}));
+                quickNavNode.appendChild(overtooning.create('a', {className: 'btn_move', textContent: 'go!', onclick: function() {
+                    var goTo = parseInt(document.getElementById('comicSequence').value) -1;
+                    if(goTo > -1 && goTo < overtooning.jar.chapterList.length) {
+                        window.location = '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[goTo].id;
+                        window.location.reload();
+                    }
+                }}));
+                  
+                if(navURL.previous) {
+                    navBarNode.appendChild(
+                        overtooning.create('span', {className: 'pre'},
+                            overtooning.create('a', {textContent: 'Prev', href: navURL.previous, onclick: overtooning.naverEvent.loadHashLink})
+                        )
+                    );
+                    if(remoconNode) {
+                        remoconNode.appendChild(overtooning.create('a', {className: 'btn_prev_end', textContent: 'first', href: navURL.first, onclick: overtooning.naverEvent.loadHashLink}));
+                        remoconNode.appendChild(overtooning.create('a', {className: 'btn_prev', textContent: 'prev', href: navURL.previous, onclick: overtooning.naverEvent.loadHashLink}));
+                    }
+                } else {
+                    if(remoconNode) {
+                        remoconNode.appendChild(overtooning.create('span', {className: 'btn_prev_end dim', textContent: 'first'}));
+                        remoconNode.appendChild(overtooning.create('span', {className: 'btn_prev dim', textContent: 'prev'}));
+                    }
+                }
+                if(navURL.next) {
+                    if(navURL.previous) {
+                        navBarNode.appendChild( overtooning.create('span', {className: 'bar', textContent: '|'}));
+                    }
+                    navBarNode.appendChild(
+                        overtooning.create('span', {className: 'next'},
+                            overtooning.create('a', {textContent: 'Next', href: navURL.next, onclick: overtooning.naverEvent.loadHashLink})
+                        )
+                    );
+                    if(remoconNode) {
+                        remoconNode.appendChild(overtooning.create('a', {className: 'btn_next', textContent: 'next', href: navURL.next, onclick: overtooning.naverEvent.loadHashLink}));
+                        remoconNode.appendChild(overtooning.create('a', {className: 'btn_next_end', textContent: 'last', href: navURL.last, onclick: overtooning.naverEvent.loadHashLink}));
+                    }
+                } else {
+                    if(remoconNode) {
+                        remoconNode.appendChild(overtooning.create('span', {className: 'btn_next dim', textContent: 'next'}));
+                        remoconNode.appendChild(overtooning.create('span', {className: 'btn_next_end dim', textContent: 'last'}));
+                    }
+                }
+            }
+        } else if(window.location.hostname == 'm.comic.naver.com') {
+            // --------------------- chapter list ------------------------ //
+            if(new RegExp('list.nhn$').test(window.location.pathname)) {
+                var adNode = overtooning.fetch('#form/div.toon_notice');
+                if(adNode) {
+                    adNode.parentNode.removeChild(adNode);
+                }
+                var navNode = document.getElementById('pageList'),
+                    linkName = window.location.pathname.replace('list.nhn', 'detail.nhn?no=1&titleId='+overtooning.jar.node.value('webtoonId')+'#otoon=');
+                navNode.textContent = '';
+                for(var i = overtooning.jar.chapterList.length -1; i > -1; i--) {
+                    navNode.appendChild(
+                        overtooning.create('li', {},
+                            overtooning.create('div', {className: 'lst'},
+                                overtooning.create('a', {href: linkName + overtooning.jar.chapterList[i].id},
+                                    overtooning.create('span', {className: 'im_br'},
+                                        overtooning.create('span', {className: 'im_inbr'},
+                                            overtooning.create('img', {width: 71, height: 42, src: overtooning.jar.chapterList[i].thumbnail})
+                                        )
+                                    ),
+                                    overtooning.create('div', {className: 'toon_info'},
+                                        overtooning.create('h4', {},
+                                            overtooning.create('span', {className: 'toon_name'},
+                                                overtooning.create('strong', {},
+                                                    overtooning.create('span', {textContent: overtooning.jar.chapterList[i].title})
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    );
+                }
+            // --------------------- chapter ------------------------ //
+            } else if(new RegExp('detail.nhn$').test(window.location.pathname)) {
+                if(raw) {
+                    var refNode = overtooning.fetch(overtooning.jar.node.routineList.imageList.args.path),
+                        imgNode = false,
+                        parentLength = overtooning.jar.node.routineList.imageList.args.next[0].split('/').length;
+                    refNode.src = overtooning.jar.pixel + ' ';
+                    while(imgNode = overtooning.next(refNode, overtooning.jar.node.routineList.imageList.args.next)) {
+                        imgNode = imgNode.node;
+                        var upOneLevel = parentLength;
+                        while(upOneLevel > 2) {
+                            upOneLevel--;
+                            imgNode = imgNode.parentNode;
+                        }
+                        imgNode.parentNode.removeChild(imgNode);
+                        overtooning.jar.fetch.node = [];
+                    }
+                    if(parentLength > 2) {
+                        var parentNode = refNode;
+                        while(parentLength > 1) {
+                            parentNode = parentNode.parentNode;
+                            parentLength--;
+                        }
+                        parentNode.parentNode.insertBefore(refNode, parentNode);
+                        parentNode.parentNode.removeChild(parentNode);
+                    }
+                    overtooning.jar.node.routineList.imageList.args.next = ['+img'];
+
+                    if(raw.length > 2) {
+                        refNode.removeAttribute('width');
+                        refNode.removeAttribute('height');
+                        refNode.src = raw[1];
+                        if(raw[0] != '') {
+                            refNode.setAttribute('style', raw[0]);
+                        }
+                    }
+                    for(var i = 2; i < raw.length; i++) {
+                        refNode.parentNode.insertBefore(
+                            overtooning.create('img', {src: raw[i]}),
+                            refNode.nextSibling);
+                        refNode = refNode.nextSibling;
+                        if(raw[0] != '') {
+                            refNode.setAttribute('style', raw[0]);
+                        }
+                    }
+                }
+
+                overtooning.assign.imageList = overtooning.jar.saveAssignImageList;
+                overtooning.jar.saveAssignImageList = null;
+                overtooning.runTemplate([overtooning.jar.node.routineList.imageList.args]);
+                
+                var navNode = overtooning.fetch('#spiLayer1/+div/p'),
+                    chapterId = overtooning.jar.node.value('chapterId'),
+                    chapterIndex = -1;
+                
+                navNode.textContent = '';
+                for(var i = 0; i < overtooning.jar.chapterList.length; i++) {
+                    if(overtooning.jar.chapterList[i].id == chapterId) {
+                        chapterIndex = i;
+                        break;
+                    }
+                }
+                
+                var navURL = {
+                    previous: chapterIndex > 0 ? '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[chapterIndex -1].id : false,
+                    next: chapterIndex < overtooning.jar.chapterList.length -1 ? '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[chapterIndex +1].id : false
+                };
+                
+                var classNav = (navURL.previous && navURL.next) ? 'w33' : 'w50';
+                if(navURL.previous) {
+                    navNode.appendChild(overtooning.create('a', {className: classNav, href: navURL.previous, onclick: overtooning.naverEvent.loadHashLink},
+                        overtooning.create('span', {className: 'pv', textContent: 'Previous'})
+                    ));
+                }
+                if(navURL.next) {
+                    navNode.appendChild(overtooning.create('a', {className: classNav, href: navURL.next, onclick: overtooning.naverEvent.loadHashLink},
+                        overtooning.create('span', {className: 'nx', textContent: 'Next'})
+                    ));
+                }
+                navNode.appendChild(overtooning.create('a', {className: classNav, href: 'list.nhn?titleId=' + overtooning.jar.node.value('webtoonId'), textContent: 'List'}));
+            }
+        }
+    },
+
+    naverEvent: { //To be deprecated once webtoons.com finishes Cheese in the Trap S3.
+        loadHashLink: function() {
+            window.location = this.href;
+            window.location.reload();
+        },
+        
+        chapterList: function() {
+            var currentNode = overtooning.fetch('#content/div.pagenavigation/span.current');
+            if(currentNode) {
+                    currentNode.className = 'otoon-virtual';
+            }
+            this.className = 'otoon-virtual current';
+            var modifyHTML = overtooning.fetch('#content/table/tbody');
+            if(modifyHTML) {
+                modifyHTML.innerHTML = '';
+                var offset = (parseInt(this.textContent) -1) * 10,
+                    i = overtooning.jar.chapterList.length -1;
+                while(offset > 0) {
+                    if(overtooning.jar.chapterList[i].thumbnail) {
+                        offset--;
+                    }
+                    i--;
+                }
+                offset = 10;
+                var linkName = window.location.pathname.replace('list.nhn', 'detail.nhn?no=1&titleId='+overtooning.jar.node.value('webtoonId')+'#otoon=');
+                while(offset > 0 && i > -1) {
+                    if(overtooning.jar.chapterList[i].thumbnail) {
+                        offset--;
+                        modifyHTML.appendChild(overtooning.create('tr', {},
+                                overtooning.create('td', {}, overtooning.create('img', {src: overtooning.jar.chapterList[i].thumbnail, alt: overtooning.jar.chapterList[i].title, title: overtooning.jar.chapterList[i].title, height: 41, width: 71})),
+                                overtooning.create('td', {className: 'title'},
+                                    overtooning.create('a', {
+                                            href: linkName + overtooning.jar.chapterList[i].id,
+                                            textContent: overtooning.jar.chapterList[i].title})),
+                                overtooning.create('td', {}),
+                                overtooning.create('td', {})
+                        ));
+                    }
+                    i--;
+                }
+            }
+            
+        },
+        
+        displayComicMove: function(chapterId) {
+            if(overtooning.jar.chapterList) {
+                var index = -1;
+                for(var i = 0; i < overtooning.jar.chapterList.length; i++) {
+                    if(overtooning.jar.chapterList[i].id == chapterId) {
+                        index = i;
+                        break;
+                    }
+                }
+                if(index != -1) {
+                    var node = overtooning.fetch('#comic_move/div/a');
+                    for(var j = -6; j < 7; j++) {
+                        if(index + j > -1 && index+ j < overtooning.jar.chapterList.length) {
+                            node.href = '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[index+j].id;
+                            node.className = (overtooning.jar.chapterList[index+j].id == parseInt(overtooning.jar.node.value('chapterId'))) ? 'on' : '';
+                            node.firstChild.firstChild.src = overtooning.jar.chapterList[index+j].thumbnail;
+                            node.lastChild.textContent = overtooning.jar.chapterList[index+j].title;
+                        } else {
+                            node.href = '#';
+                        }
+                        node = overtooning.fetch('^1/+div/a', node, true)
+                    }
+
+                    document.getElementById('otoon_before').setAttribute('style', index -3 > 0 ? 'visibility: visible;' : 'visibility: hidden;');
+                    document.getElementById('otoon_after').setAttribute('style', index +3 >= overtooning.jar.chapterList.length ? 'visibility: hidden;' : 'visibility: visible;');
+                }
+            }
+        },
+        
+        comicMoveLeft: function() {
+            if(overtooning.jar.chapterList) {
+                var chapterId = parseInt(document.getElementById('comic_move').childNodes[7].firstChild.href.split('=').pop());
+                var index = -1;
+                for(var i = 0; i < overtooning.jar.chapterList.length; i++) {
+                    if(overtooning.jar.chapterList[i].id == chapterId) {
+                        index = i;
+                        break;
+                    }
+                }
+                console.log(index);
+                if(index != -1) {
+                    var moveLeft = index - 3 > -1 ? 3 : index;
+                    console.log(index-moveLeft);
+                    overtooning.naverEvent.displayComicMove(overtooning.jar.chapterList[index-moveLeft].id);
+                }
+            }
+            return false;
+        },
+        comicMoveRight: function() {
+            if(overtooning.jar.chapterList) {
+                var chapterId = parseInt(document.getElementById('comic_move').childNodes[7].firstChild.href.split('=').pop());
+                var index = -1;
+                for(var i = 0; i < overtooning.jar.chapterList.length; i++) {
+                    if(overtooning.jar.chapterList[i].id == chapterId) {
+                        index = i;
+                        break;
+                    }
+                }
+                console.log(index);
+                if(index != -1) {
+                    var moveRight = index + 3 <  overtooning.jar.chapterList.length ? 3 : overtooning.jar.chapterList.length - index;
+                    console.log(index+moveRight);
+                    overtooning.naverEvent.displayComicMove(overtooning.jar.chapterList[index+moveRight].id);
+                }
+            }
+            return false;
+        },
+    },
+
+    openBrackets: function(path, next) {
+        var bracket;
+        while((bracket = path.lastIndexOf('[')) != -1) {
+            var length = path.length;
+            if(bracket < length -1) { //superfluous, but oh well.
+                if(path[bracket+1] != ']') {
+                    var repeat = 0, pad = 0;
+                    while(bracket + 1 + pad < length && path[bracket+1+pad].match(/^[0-9]$/)) {
+                        repeat = repeat * 10 + parseInt(path[bracket+1+pad]);
+                        pad++;
+                    }
+                    var element = path.substr(0, bracket);
+                    element = element.substr(element.lastIndexOf('/') +1).replace(/#[a-zA-Z0-9_\-]+/, '');
+                    var step = '+';
+                    if(element[0].match(/^[~+^-]$/)){
+                        switch(element[0]) {
+                            case '~':
+                            case '-':
+                            step = '-';
+                            default:
+                            element = element.substr(1);
+                        }
+                    }
+                    step = '/' + step + element;
+                    // step.repeat(repeat-1) not compatible with safari and old version of browsers.
+                    path = path.substr(0, bracket) + Array(repeat).join(step) + path.substr(bracket+2+pad); //replace [number]
+                } else {
+                    if(!next) {
+                        next = [];
+                    }
+                    path = path.substr(0, bracket) + path.substr(bracket+2); //delete []
+                    var element = path.substr(path.lastIndexOf('/', bracket-1) +1).replace(/#[a-zA-Z0-9_\-]+/, '');
+                    var parentNumber = element.match(/\/[^+\-]/g); //MISSING: discount ^ parents.
+                    if(!parentNumber && element[0].match(/^[~+^-]$/)) {
+                        element = element.substr(1);
+                    }
+                    next.push( (parentNumber ? '^' + parentNumber.length + '/' : '') + '+' + element);
+                }
+            }
+        }
+        return {path: path, next: next};
+    },
+    
+    getBaseCss: function() {
+        return '#otoon-console {'+
+            'position: absolute;'+
+            'top: 0; left: 0;'+
+            'padding: 2em;'+
+            'box-sizing: border-box;'+
+            'background: rgba(0, 0, 0, 0.5);'+
+            'width: 100%; min-height: 100%;'+
+            'z-index: 99999;'+
+            'text-align: left;'+
+        '}' +
+        '#otoon-console .otoon-row {'+
+            'background: white;'+
+        '}' +
+        '.otoon-col {'+
+            'padding: 1.5em;'+
+        '}'+
+        '.otoon-row .otoon-row {'+
+            'margin: 0 -1.5em;'+
+        '}'+
+        '.otoon-button, #otoon-console a:hover, .otoon-option {'+
+            'cursor: pointer;'+
+            'color: white;'+
+            'text-shadow: 1px 1px 1px black, 1px -1px 1px black, -1px 1px 1px black, -1px -1px 1px black;'+
+        '}'+
+        '.otoon-overlay:not(.hidden) + img, .otoon-hidden {'+
+            'display: none !important;'+
+        '}'+
+        '.otoon-overlay {'+
+            'position: relative;'+
+        '}'+
+        '.otoon-overlay canvas {'+
+            'max-width: 100%; max-height: 100%; display: block; margin: 0 auto;'+
+        '}'+
+        '.otoon-col.otoon-info {'+
+            'padding: 0 1.5em 1em 1.5em;'+
+            'font-style: italic;'+
+        '}'+
+        '.otoon-button:not(:hover):not(.otoon-active), .otoon-toggler:not(:checked) + .otoon-option:not(:hover):not(.otoon-active) {'+
+            'color: black;'+
+            'background: white !important;'+
+            'text-shadow: 0 0 0 black;'+
+        '}'+
+        '.otoon-row .otoon-close {'+
+            'background: #F36858;'+
+            'padding: 0.5em;'+
+            'width: 10%;'+
+            'text-align: right;'+
+        '}'+
+        '.otoon-row .otoon-no {'+
+            'background: #F36858;'+
+        '}'+
+        '.otoon-yes, .otoon-no {'+
+            'display: inline-block; width: 50%; height: 100%; text-align: center; line-height: 2em;'+
+        '}'+
+        '.otoon-col.otoon-option-value {'+
+            'padding: 1.5em 1.5em 0.5em 1.5em;'+
+        '}'+
+        '.otoon-row .otoon-general {'+
+            'background: #51A2E5;'+
+        '}'+
+        '.otoon-row .otoon-feed {'+
+            'background: #01C685;'+
+        '}'+
+        '.otoon-row .otoon-webtoon, .otoon-row .otoon-yes {'+
+            'background: #8DD630;'+
+        '}'+
+        '.otoon-row .otoon-log {'+
+            'background: #9B8AEF;'+
+        '}'+
+        '.otoon-row .otoon-logo {'+
+            'background: #BEBFA4;'+
+            'width: 90%;'+
+            'padding: 0.5em;'+
+        '}'+
+        '.otoon-row .otoon-rough {'+
+            'background: #E68323;'+
+        '}'+
+        '.otoon-row .otoon-template {'+
+            'background: #F4C41F;'+
+        '}'+
+        '.otoon-menu {'+
+            'text-align: center;'+
+        '}'+
+        '@media screen and (min-width:20em) {'+
+            '.otoon-menu .otoon-col {width: 50%;}'+
+            '.otoon-col.otoon-option-name, .otoon-col.otoon-option-value {width: 50%;}'+
+        '}'+
+        '@media screen and (min-width:30em) {'+
+            '.otoon-menu .otoon-col {width: 33.332%;}'+
+        '}'+
+        '@media screen and (min-width:60em) {'+
+            '.otoon-menu .otoon-col {width: 16.666%;}'+
+        '}'+
+        '@media only screen {'+
+            '.otoon-col {'+
+                'display: inline-block;'+
+                'overflow: hidden;'+
+                'width: 100%;'+
+                'box-sizing: border-box;'+
+                'vertical-align:top;'+
+            '}'+
+        '}';  
     },
     
     addLog: function(stringLog) {
         console.log(stringLog);
-        this.log.push(stringLog);
+        this.jar.log.push(stringLog);
     },
-    
-    runPath: function(pathObject) {
-        if(!pathObject || !pathObject.node) {
-                return false;
-        }
-        if(pathObject.translate && pathObject.translate.join) {
-            this.translate(pathObject);
-            return false;
-        }
-        if(pathObject.tagName && pathObject.node.nodeName != pathObject.tagName) {
-            var copyNode = this.create(pathObject.tagName, {innerHTML: pathObject.node.innerHTML ? pathObject.node.innerHTML : ' '});
-            if(pathObject.node.className) {
-                copyNode.className = pathObject.node.className;
-            }
-            if(pathObject.node.id) {
-                copyNode.id = pathObject.node.id;
-            }
-            pathObject.node.parentNode.insertBefore(copyNode, pathObject.node);
-            pathObject.node = pathObject.node.previousSibling;
-            pathObject.node.parentNode.removeChild(pathObject.node.nextSibling);
-        }
-        if(pathObject.className && pathObject.node.className != pathObject.className) {
-            pathObject.node.className = pathObject.className;
-        }
-        if(pathObject.style) {
-            var refNode = (pathObject.node.nodeName == '#text' ? pathObject.node.parentNode : pathObject.node);
-            refNode.setAttribute('style', refNode.getAttribute('style') ?  refNode.getAttribute('style') + pathObject.style : pathObject.style);
-        }
-        if(pathObject.translate !== undefined && pathObject.translate != '') {
-                this.value(pathObject.node, pathObject.translate);
-        }
-        if(pathObject.assign) {
-            if(this.vars[pathObject.assign]) {
-                if(this.vars[pathObject.assign].node){
-                    this.vars[pathObject.assign] = [this.vars[pathObject.assign]];
-                }
-                this.vars[pathObject.assign].push(pathObject);
-            } else {
-                this.vars[pathObject.assign] = pathObject;
-            }
-        }
-    },
-    
-    translate: function(pathObject) {
-        if(!pathObject || !pathObject.node || !pathObject.translate) {
-            return false;
-        }
-        if(!pathObject.translate.join) {
-            pathObject.translate = [pathObject.translate];
-        }
-        
-        if(pathObject.by) {
-            var translate = pathObject.translate, by = pathObject.by;
-            pathObject.translate = null;
-            while(pathObject.node) {
-                this.runPath(pathObject);
-                for(var i = 0; i < translate.length; i++) {
-                    this.value(pathObject.node,
-                        this.value(pathObject.node).replace(translate[i], by[i])
-                    );
-                }
-                pathObject.node = this.getNextNode(pathObject.node, pathObject.next);
-            }
-            return true;
-        }
-        
-        var cloneTranslate = pathObject.translate.slice(0);
-        var clonePathObject = {
-            node: pathObject.node,
-            translate: false,
-            tagName: pathObject.tagName || undefined,
-            className: pathObject.className || undefined,
-            style: pathObject.style || undefined
-        };
-        while(clonePathObject.node && cloneTranslate.length > 0) {
-            clonePathObject.translate = cloneTranslate.shift();
-            this.runPath(clonePathObject);
-            clonePathObject.node = (cloneTranslate.length > 0 ? this.getNextNode(clonePathObject.node, pathObject.next) : false);
-        }
-    },
-
-    mutationObserved: function(observer, mutations) {
-        if(document.readyState != "complete") {
-            //overlayLoader.addLog(document.readyState);
-            this.timer = window.setTimeout(function() {overlayLoader.mutationObserved(observer);}, 500);
-            return;
-        }
-        //overlayLoader.addLog('Mutation observed ' + observer.target.nodeName + '.' + observer.target.className + (observer.target.id ? '#' + observer.target.id : ''));
-        if(mutations) {
-            mutations.forEach(function(mutation) {
-                overlayLoader.addLog('Mutation: ' + mutation.type);
-            });
-        }
-        if(observer.timer) {
-            window.clearTimeout(observer.timer);
-        }
-        observer.timer = window.setTimeout(function() {
-            observer.takeRecords(); //dump records.
-            observer.disconnect();
-            for(var cursor = 0; cursor < observer.actionPath.length; cursor++) {
-                observer.actionPath[cursor].node = overlayLoader.fetch(observer.actionPath[cursor].path);
-                if(observer.actionPath[cursor].node) {
-                    overlayLoader.addLog(observer.actionPath[cursor].callback + ' ' + observer.actionPath[cursor].path);
-                    if(observer.actionPath[cursor].innerPath && observer.actionPath[cursor].innerPath.imageId) {
-                        observer.actionPath[cursor].innerPath.imageId = 0;
-                    }
-                    overlayLoader[observer.actionPath[cursor].callback](observer.actionPath[cursor]);
-                }
-            }
-            window.setTimeout(function() { //maybe put this in callback functions (? canvas being slow?).
-                observer.observe(observer.target, observer.options);},
-                50, observer);
-        }, 200, observer);
-    },
-    
-    // ----------------- OVERLAYLOADER.LISTUPDATE $listUpdate
-    listUpdate: function(pathObject) {
-        if(!pathObject || !pathObject.node || !pathObject.innerPath) {
-            overlayLoader.addLog('node not found ' + (pathObject.path || 'nopath') + ' ' + pathObject.node + ' ' + pathObject.innerPath);
-            return false;
-        }
-        if(pathObject.innerPath.chapterId && !overlayLoader.resource.chapterList) {
-            return false;
-        }
-        var untranslatedWebtoon = [];
-        while(pathObject.node) {
-            if(pathObject.weekdayList && pathObject.node.newList) {
-                untranslatedWebtoon = [];
-            }
-            var innerPath = {};
-            for (var property in pathObject.innerPath) {
-                if (pathObject.innerPath.hasOwnProperty(property)) {
-                    var tryPath = pathObject.innerPath[property].split('|');
-                    while(tryPath.length > 0 && !innerPath[property]) {
-                        innerPath[property] = overlayLoader.fetch(tryPath.shift(), pathObject.node);
-                    }
-                }
-            }
-            if(innerPath.webtoonId) {
-                var webtoonInfo = false;
-                var webtoonId = overlayLoader.value(innerPath.webtoonId)
-                for(var cursor = 0; cursor < overlayLoader.data.webtoonList.length; cursor++) {
-                    if(overlayLoader.data.webtoonList[cursor].wI == webtoonId) {
-                        webtoonInfo = overlayLoader.data.webtoonList[cursor];
-                        break;
-                    }
-                }
-                if(webtoonInfo) {
-                    overlayLoader.value(innerPath.webtoonTitle, webtoonInfo.wT);
-                    overlayLoader.value(innerPath.webtoonAuthor, webtoonInfo.wA);
-                    overlayLoader.value(innerPath.webtoonBlurb, webtoonInfo.wB);
-                    overlayLoader.runPath(pathObject);
-                    if(untranslatedWebtoon.length) {
-                        var saveNodePlace = pathObject.node.nextSibling;
-                        var switchNode = untranslatedWebtoon.shift();
-                        pathObject.node.parentNode.replaceChild(pathObject.node, switchNode);
-                        pathObject.node.parentNode.insertBefore(switchNode, saveNodePlace);
-                        pathObject.node = switchNode;
-                        untranslatedWebtoon.push(pathObject.node);
-                    }
-                } else {
-                    untranslatedWebtoon.push(pathObject.node);
-                }
-            } else {
-                var chapterInfo = false;
-                var chapterId = overlayLoader.value(innerPath.chapterId)
-                for(var cursor = 0; cursor < overlayLoader.resource.chapterList.length; cursor++) {
-                    if(overlayLoader.resource.chapterList[cursor].id == chapterId) {
-                        chapterInfo = overlayLoader.resource.chapterList[cursor];
-                        break;
-                    }
-                }
-                if(chapterInfo) {
-                    overlayLoader.value(innerPath.chapterTitle, chapterInfo.title);
-                    overlayLoader.runPath(pathObject);
-                }
-            }
-            pathObject.node = overlayLoader.getNextNode(pathObject.node, pathObject.next);
-        }
-        untranslatedWebtoon = [];
-    },
-    
-    value: function(element, setValue) {
+ 
+    value: function(element, setValue, multiline) { //revamp: treewalker for textnodes?
         if(!element) {
             return false;
         }
@@ -2530,6 +2108,9 @@ var overlayLoader = {
         if(element.node) {
             element = element.node;
         }
+        if(setValue && !element.nodeValue) {
+            element.textContent = ' ';
+        }
         if(!element.nodeValue && element.firstChild) {
             element = element.firstChild;
         }
@@ -2537,274 +2118,29 @@ var overlayLoader = {
             return false;
         }
         if(setValue) {
-            setValue = setValue.split('{endl}');
-            element.nodeValue = setValue[0];
-            for(var count = setValue.length -1; count > 0; count--) {
-                element.parentNode.insertBefore(this.create(setValue[count]), element.nextSibling);
-                element.parentNode.insertBefore(this.create('br', {}), element.nextSibling);
+            if(multiline) {
+                setValue = setValue.split("\n");
+                element.nodeValue = setValue[0];
+                for(var count = setValue.length -1; count > 0; count--) {
+                    element.parentNode.insertBefore(this.create(setValue[count]), element.nextSibling);
+                    element.parentNode.insertBefore(this.create('br', {}), element.nextSibling);
+                }
+            } else {
+                element.nodeValue = setValue;
             }
         }
         return element.nodeValue;
     },
     
-    // ----------------- OVERLAYLOADER.CANVAS $canvas
-    canvas: function(pathObject) {
-        if(!pathObject) {
-            pathObject = overlayLoader.vars.imageList;
-        } else if (!overlayLoader.vars.imageList) {
-            overlayLoader.vars.imageList = pathObject;
-        }
-        if(!overlayLoader.resource.generalUrl) {
-            overlayLoader.addLog('[overLoader.canvas] Cancelled (no URL).');
-            return false;
-        }
-        if(!pathObject || !pathObject.node) {
-            overlayLoader.addLog('[overLoader.canvas] Cancelled (no registered node).');
-            return false;
-        }
+    digit: function (number, width, filler) {
+        filler = filler || '0';
+        number = number + '';
+        return number.length >= width ? number : new Array(width - number.length + 1).join(filler) + number;
+    },
 
-        overlayLoader.vars.imageList.node = pathObject.node;
-        if(window.location.hostname == 'm.comic.naver.com' && !overlayLoader.resource.watcher) { //special behavior for m.comic.naver.com
-            var saveNode = overlayLoader.vars.imageList.node;
-            overlayLoader.resource.watcherList = [];
-            while(overlayLoader.vars.imageList.node) {
-                overlayLoader.resource.watcherList.push({
-                    node: overlayLoader.vars.imageList.node,
-                    canvas: false
-                });
-                overlayLoader.vars.imageList.node = overlayLoader.getNextNode(/*overlayLoader.vars.imageList.node.nextSibling*/overlayLoader.vars.imageList.node, overlayLoader.vars.imageList.next);
-            }
-            overlayLoader.vars.imageList.node = saveNode;
-            overlayLoader.resource.watcher = window.setInterval(function() {overlayLoader.naverMobileWatcher();}, 1000);
-            overlayLoader.getNextImage = function() {
-                overlayLoader.resource.busy = false;
-                for(var i = 0; i < overlayLoader.resource.watcherList.length; i++) {
-                    var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-legacy-src') || overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src') || overlayLoader.resource.watcherList[i].node.src;
-                    if(lazySrc && !overlayLoader.resource.watcherList[i].canvas && lazySrc == overlayLoader.resource.watcherList[i].node.src) {
-                        overlayLoader.resource.watcherList[i].canvas = true;
-                        overlayLoader.vars.imageId = i;
-                        overlayLoader.vars.imageList.node = overlayLoader.resource.watcherList[i].node;
-                        overlayLoader.canvas();
-                        return true;
-                    }
-                }
-            };
-        }
-        if(pathObject.innerPath.src) {
-            overlayLoader.resource.rawImage.src = pathObject.node.getAttribute(pathObject.innerPath.src);
-        } else {
-            overlayLoader.resource.rawImage.src = pathObject.node.src;
-        }
-    },
-    
-    naverMobileWatcher: function() {
-        for(var i = 0; i < overlayLoader.resource.watcherList.length; i++) {
-            var lazySrc = overlayLoader.resource.watcherList[i].node.getAttribute('data-lazy-src');
-            if(lazySrc && overlayLoader.resource.watcherList[i].canvas && lazySrc != overlayLoader.resource.watcherList[i].node.src) {
-                overlayLoader.resource.watcherList[i].canvas = false;
-                if(overlayLoader.resource.watcherList[i].node.nextSibling && overlayLoader.resource.watcherList[i].node.nextSibling.className == 'toonreader_overlay') {
-                    var saveNode = overlayLoader.resource.watcherList[i].node.nextSibling;
-                    saveNode.parentNode.removeChild(saveNode);
-                    delete saveNode;
-                }
-            }
-        }
-        if(!overlayLoader.resource.busy) {
-            overlayLoader.getNextImage();
-        }
-    },
-    
-    getNextImage: function() {
-        overlayLoader.resource.busy = false;
-        overlayLoader.vars.imageId++;
-        overlayLoader.vars.imageList.node = overlayLoader.getNextNode(overlayLoader.vars.imageList.node, overlayLoader.vars.imageList.next);
-        if(overlayLoader.vars.imageList.node) {
-                overlayLoader.canvas();
-        } else {
-            overlayLoader.resource.rawImage = null;
-            overlayLoader.resource.overlay = null;
-        }
-    },
-    
-    getNextNode: function(node, nextArray) {
-        if(node && nextArray && nextArray[0]) {
-            var saveNode = node;
-            var currentNode = this.fetch(nextArray[0], saveNode);
-            for(var cursor = 1; !currentNode && cursor < nextArray.length; cursor++) {
-                currentNode = this.fetch(nextArray[cursor], saveNode);
-            }
-            if(currentNode) {
-                if(cursor > 1 && cursor == nextArray.length) {
-                    currentNode.newList = true;
-                }
-                return currentNode;
-            }
-        }
-        return false;
-    },
-    
-    // $query
-    shiftQueries: function(data, firstcall) {
-        if(!firstcall) {
-            var feedId = overlayLoader.queries.shift().feedID;
-            if(!feedId) {
-                feedId = 0;
-            }
-            overlayLoader.data.feedList[feedId].lastUpdate = overlayLoader.MTime();
-            data = JSON.parse(data);
-            if(!data) {
-                overlayLoader.addLog('[overlayLoader.json] parsing failed.');
-                data = {};
-            }
-            if(data.data) {
-                data = JSON.parse(overlayLoader.base64decode(data.data));
-            }
-            if(data.teamName && typeof data.teamName == 'string' && /^[0-9a-zA-Z.,;&@"'(){}!?*~_\[\] +=\-]+$/.test(data.teamName)) {
-                overlayLoader.data.feedList[feedId].name = data.teamName.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-            }
-            if(data.teamURL && typeof data.teamURL == 'string' && /^https?:\/\/[a-z0-9\-]+(\.[a-z0-9\-]+)+([\/?].+)?$/i.test(data.teamURL)) {
-                overlayLoader.data.feedList[feedId].teamUrl = data.teamURL;
-            }
-            //--- MAYBE UPDATE - test against group precedence. $incomplete
-            if(data.title && !overlayLoader.scanlated && overlayLoader.vars.webtoonTitle && overlayLoader.value(overlayLoader.vars.webtoonTitle) != data.title) {
-                overlayLoader.value(overlayLoader.vars.webtoonTitle, data.title);
-                if(overlayLoader.vars.internalWebtoonId !== false && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
-                    overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wT = data.title;
-                }
-            }
-            if(data.author && !overlayLoader.scanlated && overlayLoader.vars.webtoonAuthor && overlayLoader.value(overlayLoader.vars.webtoonAuthor) != data.author) {
-                overlayLoader.value(overlayLoader.vars.webtoonAuthor, data.author);
-                if(overlayLoader.vars.internalWebtoonId !== false && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
-                    overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wA = data.author;
-                }
-            }
-            if(data.description && !overlayLoader.scanlated && overlayLoader.vars.webtoonBlurb && overlayLoader.value(overlayLoader.vars.webtoonBlurb) != data.description.split('{endl}')[0]) { //only first line, buggy.
-                overlayLoader.value(overlayLoader.vars.webtoonBlurb, data.description);
-                if(overlayLoader.vars.internalWebtoonId !== false  && overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId]) {
-                    overlayLoader.data.webtoonList[overlayLoader.vars.internalWebtoonId].wB = data.description;
-                }
-            }
-            if(data.webtoonComment && !overlayLoader.scanlated && overlayLoader.vars.webtoonComment && overlayLoader.value(overlayLoader.vars.webtoonComment) != data.webtoonComment) {
-                overlayLoader.value(overlayLoader.vars.webtoonComment, data.webtoonComment);
-            }
-            if(data.chapterList && data.chapterList instanceof Array) {
-                overlayLoader.resource.chapterList = data.chapterList;
-                if(overlayLoader.vars.chapterList) {
-                    if(!(overlayLoader.vars.chapterList instanceof Array)) {
-                        overlayLoader.listUpdate(overlayLoader.vars.chapterList);
-                    } else {
-                        for(cursor = 0; cursor < overlayLoader.vars.chapterList.length; cursor++) {
-                            overlayLoader.listUpdate(overlayLoader.vars.chapterList[cursor]);
-                        }
-                    }
-                }
-            }
-            if(data.generalUrl && !overlayLoader.scanlated) {
-                overlayLoader.scanlated = true;
-                if(overlayLoader.vars.chapterTitle && data.chapterName && typeof data.chapterName == 'string') {
-                    overlayLoader.value(overlayLoader.vars.chapterTitle, data.chapterName);
-                }
-                if(data.salt) {
-                    overlayLoader.resource.salt = parseInt(data.salt, 10);
-                }
-                //--- pagination $incomplete
-                /*if(data.pagination && overlayLoader.value(overlayLoader.vars.startingImage) > 1 && data.pagination.length && data.pagination.length >= overlayLoader.startingImage -1) {
-                    overlayLoader.resource.startingImage = data.pagination[overlayLoader.startingImage -2];
-                } else {
-                    overlayLoader.startingImage = 0;
-                }*/
-                overlayLoader.resource.generalUrl = data.generalUrl;
-                overlayLoader.canvas();
-            }
-            if(overlayLoader.scanlated) {
-                 while(overlayLoader.queries.length && overlayLoader.queries[0].update == false) {
-                    overlayLoader.queries.shift();
-                }
-            }
-            if(data.remove) {
-                if(typeof data.remove != 'object') {
-                    data.remove = [data.remove];
-                }
-                for(var toRemove = data.remove.length-1; toRemove >= 0; toRemove--) {
-                    for(var i = 0; i < overlayLoader.data.webtoonList.length; i++) {
-                        if(overlayLoader.data.webtoonList[i].wI == data.remove[toRemove]) {
-                            var removeFeed = overlayLoader.data.webtoonList[i].fL.indexOf(feedId);
-                            if(removeFeed != -1) {
-                                overlayLoader.data.webtoonList[i].fL.slice(removeFeed,1);
-                            }
-                            if(overlayLoader.data.webtoonList[i].fL.length == 0) {
-                                overlayLoader.data.webtoonList.slice(i,1);
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            if(data.add) {
-                if(!data.add[0] || !data.add[0].id) {
-                    data.add = [data.add];
-                }
-                for(var i = data.add.length -1; i >= 0; i--) {
-                    if( data.add[i].id && typeof data.add[i].id == 'string' && /^[0-9a-zA-Z_\-]+$/.test(data.add[i].id) &&
-                        data.add[i].title && typeof data.add[i].title == 'string' && /^[0-9a-zA-Z.,;&@"'(){}!?*~_\[\] +=\-]+$/.test(data.add[i].title) &&
-                        data.add[i].author && typeof data.add[i].author == 'string' && /^[0-9a-zA-Z.,;&@"'(){}!?*~_\[\] +=\-]+$/.test(data.add[i].author) &&
-                        data.add[i].blurb && typeof data.add[i].blurb == 'string' && /^[0-9a-zA-Z.,;:&@"'(){}!?*~_\[\] +=\-]+$/.test(data.add[i].blurb)) {
-                        var alreadyInserted = false;
-                        for(var j = 0; j < overlayLoader.data.webtoonList.length; j++) {
-                            if(overlayLoader.data.webtoonList[j].wI == data.add[i].id) {
-                                alreadyInserted = j;
-                                //ask if changes are to be committed!!!!!!!!!
-                                if(overlayLoader.data.webtoonList[j].fL.indexOf(feedId) == -1) {
-                                    overlayLoader.data.webtoonList[j].fL.push(feedId);
-                                }
-                                break;
-                            }
-                        }
-                        if(alreadyInserted === false) {
-                            overlayLoader.data.webtoonList.push({
-                                wI: data.add[i].id, //Id
-                                wT: data.add[i].title.replace(/^\s+/, '').replace(/\s+$/, ''), //Title
-                                wA: data.add[i].author.replace(/^\s+/, '').replace(/\s+$/, ''), //Author
-                                wB: data.add[i].blurb.replace(/^\s+/, '').replace(/\s+$/, ''),  //Blurb
-                                fL: [feedId]
-                            });
-                        }
-                    }
-                }
-                if(overlayLoader.vars.webtoonList) {
-                    overlayLoader.addLog('webtoonList after CORS');
-                    if(!(overlayLoader.vars.webtoonList instanceof Array)) {
-                        overlayLoader.vars.webtoonList.node = overlayLoader.fetch(overlayLoader.vars.webtoonList.path);
-                        overlayLoader.listUpdate(overlayLoader.vars.webtoonList);
-                    } else {
-                        for(var cursor = 0; cursor < overlayLoader.vars.webtoonList.length; cursor++) {
-                            overlayLoader.vars.webtoonList[cursor].node = overlayLoader.fetch(overlayLoader.vars.webtoonList[cursor].path);
-                            overlayLoader.listUpdate(overlayLoader.vars.webtoonList[cursor]);
-                        }
-                    }
-                }
-            }
-        localStorage.setItem('overloaderData', JSON.stringify(overlayLoader.data));
-        }
-        if(overlayLoader.queries.length) {
-            var j = overlayLoader.queries[0].feedID;
-            var queryUrl = this.data.feedList[j].url + '/' + window.location.hostname + '/' + (this.value(this.vars.webtoonId) || '0') + '/' + (this.value(this.vars.chapterId) || '0') + '.json?' + (this.data.feedList[j].lastUpdate ? Math.abs(this.MTime() - this.data.feedList[j].lastUpdate+1) : 0).toString();
-            overlayLoader.cors(
-                queryUrl, 'GET', '', '',
-                function(data) {overlayLoader.shiftQueries(data);},
-                function(error) {overlayLoader.addLog('[overlayLoader.cors] '+error.message); overlayLoader.queries.shift(); overlayLoader.shiftQueries(false, true);}
-            );
-        }
-    },
-    
-    digit: function (number) {
-        return (number < 10 ? '0' + number : number);
-    },
-    
-    // ----------------- OVERLAYLOADER.FETCH $fetch
-    fetch: function (path, node) {
+    fetch: function (path, node, nolog) {
         if(!path) {
-            overlayLoader.addLog('[overlayLoader.fetch] no path');
+            this.addLog('[overtooning.fetch] no path');
             return false;
         } else if (typeof path == 'string') { //first iteration of that path.
             if(!node) {
@@ -2816,94 +2152,166 @@ var overlayLoader = {
                 }
             }
             path = {tag: path.substr(Math.max(0, path.indexOf('#'))).split('/'), current: 0};
-            if(this.savePath.node[0] && this.savePath.node[0] === node) { //same source node
-                while(this.savePath.name[path.current+1] && path.tag[path.current] && this.savePath.name[path.current+1] == path.tag[path.current]) {
+            if(this.jar.fetch.node[0] && this.jar.fetch.node[0] === node) { //same source node
+                while(this.jar.fetch.name[path.current+1] && path.tag[path.current] && this.jar.fetch.name[path.current+1] == path.tag[path.current]) {
                     path.current++;
-                    node = this.savePath.node[path.current];
+                    node = this.jar.fetch.node[path.current];
                 }
                 if(path.current == path.tag.length) { //same node searched in the end.
                     return node;
                 }
-                this.savePath.node = this.savePath.node.slice(0, path.current+2);
-                this.savePath.name = this.savePath.name.slice(0, path.current+2);
+                this.jar.fetch.node = this.jar.fetch.node.slice(0, path.current+2);
+                this.jar.fetch.name = this.jar.fetch.name.slice(0, path.current+2);
             } else {
-                this.savePath = {node: [node], name: ['sourceNode']};
+                this.jar.fetch = {node: [node], name: ['sourceNode']};
             }
         }
-        if(path.tag[path.current] == '') {
+        if(path.tag[path.current] == '') { //should not be necessary anymore
             return node && node.firstChild ? node.firstChild : false;
-        } else if(/^(\+|-|\.\.)[0-9]*$/.test(path.tag[path.current])) {
-            var property = path.tag[path.current][0] == '.' ? 'parentNode' : (path.tag[path.current][0] == '+' ? 'nextSibling' : 'previousSibling');
-            for(var amount = Math.max(1, parseInt(path.tag[path.current].replace(/(\+|-|\.\.)/, '0'), 10)); amount && node[property]; amount--) {
-                node = node[property];
-            }
-            if(amount != 0) {
-                overlayLoader.addLog('[overlayLoader.fetch] node not found ' + property + ' for ' + path.tag.join('/') + ' (' + path.current + ' : ' + path.tag[path.current] + ')');
-                return false;
-            }
         } else {
-            var compare = {
-                id: path.tag[path.current].match(/#[a-zA-Z0-9_\-]+/),
-                nodeName: path.tag[path.current].match(/^~?([a-zA-Z0-9]+)/),
-                movingProperty: path.tag[path.current].match(/^~/) ? 'previousSibling' : 'nextSibling',
-                className: path.tag[path.current].match(/\.[a-zA-Z0-9 _\-]+/),
-                attribute: path.tag[path.current].match(/@([a-z-]+)(\?[a-zA-Z0-9_\-]+)?/)
-            };
-            if(compare.id) {
-                node = document.getElementById(compare.id[0].substr(1));
-            } else if(compare.nodeName) {
-                if(path.current == 0 || !/^(\+|-|\.\.)[0-9]*$/.test(path.tag[path.current - 1])) {
-                    node = path.tag[path.current].match(/^~/) ? node.lastChild : node.firstChild;
+            // 1 is #nodeID or tagName, 2 is .className (or attributeName=value), 3 is attribute to return
+            var pathData = /^((?:#|~|\+|-|\^)?(?:[a-z0-9A-Z_-]*))?((?:\.[a-zA-Z0-9 _-]+(?:=[a-zA-Z0-9 _-]+)?)*)?(@[a-zA-Z0-9_-]+(?:\?(?:=[a-zA-Z_-]+|[pn]-?[0-9]+))?)?$/.exec(path.tag[path.current]);
+            //console.log(pathData.toString());
+            if(!pathData[1] && !pathData[2]) {
+                this.addLog('[overtooning.fetch] Malformed request ' + path.tag[path.current]);
+                return false
+            }
+            
+            if(pathData[1] && pathData[1][0] == '#') {
+                if(pathData[1].length < 2) {
+                    this.addLog('[overtooning.fetch] Illegal ID # at ' + path.tag[path.current]);
+                    return false
                 }
-                compare.nodeName = compare.nodeName[1].toLowerCase();
-                if(compare.className) {
-                    compare.className = compare.className[0].substr(1);
-                    while(node && (node.nodeName.toLowerCase() != compare.nodeName || !this.compareClassName(compare.className, node.className))) {
-                        node = node[compare.movingProperty];
+                node = document.getElementById(pathData[1].substr(1));
+            } else {
+                var movingProperty = 'nextSibling', compare = [];
+                if(pathData[1]) {
+                    var slash = true;
+                    switch(pathData[1][0]) {
+                        case '~':
+                        movingProperty = 'previousSibling';
+                        node = node.lastChild;
+                        break;
+                        case '+':
+                        node = node.nextSibling;
+                        break;
+                        case '-':
+                        movingProperty = 'previousSibling';
+                        node = node.previousSibling;
+                        break;
+                        case '^':
+                        movingProperty = 'parentNode';
+                        node = node.parentNode;
+                        break;
+                        default:
+                        node = node.firstChild;
+                        slash = false;
+                    }
+                    if(slash) {
+                        pathData[1] = pathData[1].substr(1);
+                    }
+                    if(pathData[1].length > 0) { //nodeName
+                        var attribute = 'nodeName';
+                        if(pathData[1].match(/^[0-9]+$/)) {
+                            attribute = 'increment';
+                            pathData[1] = parseInt(pathData[1]) -1;
+                        } else if(pathData[1] == '_text') {
+                            pathData[2] = null;
+                            pathData[3] = null;
+                            pathData[1] = '#text';
+                        }
+                        compare.push({attribute: attribute, value: pathData[1]});
                     }
                 } else {
-                    while(node && node.nodeName.toLowerCase() != compare.nodeName) {
-                        node = node[compare.movingProperty];
+                    node = node.firstChild;
+                }
+                if(pathData[2]) { //attributes
+                    pathData[2] = pathData[2].substr(1).split('.');
+                    var tmp;
+                    for(var cursor = pathData[2].length -1; cursor > -1; cursor--) {
+                        tmp = pathData[2][cursor].split('=');
+                        if(tmp[1]) {
+                            compare.push({attribute: tmp[0], value: tmp[1]});
+                        } else {
+                            compare.push({attribute: 'className', value: tmp[0]});
+                        }
                     }
                 }
-            } else if(compare.attribute) {
-                //-- nothing to do?
-                //overlayLoader.addLog('[overlayLoader.fetch] Attribute alone.');
-            }else {
-                overlayLoader.addLog('[overlayLoader.fetch] insufficient identifier for ' + path.tag.join('/') + ' (' + path.current + ': ' + path.tag[path.current] + ')');
-                return false;
-            }
-            if(node && compare.attribute) {
-                node = node.attributes[compare.attribute[1]];
-                if(node && compare.attribute[2]) { //treatment required.
-                    node = node.value;
-                    compare.attribute[2] = compare.attribute[2].substr(1);
-                    if(compare.attribute[2].match(/^path[0-9-]+$/)) { //"path" is a keyword, unfortunately (attribute named "path" won't work). $incomplete
-                        node = node.split('/');
-                        node = node[parseInt(compare.attribute[2].substr(4), 10) >= 0 ? parseInt(compare.attribute[2].substr(4), 10) : node.length +  parseInt(compare.attribute[2].substr(4), 10)];
-                    } else if(compare.attribute[2].match(/^-?[0-9]+$/)) { //parse numbers and take one.
-                        var numbers = node.match(/-?[0-9]+/g);
-                        node = numbers[parseInt(compare.attribute[2], 10) >= 0 ? parseInt(compare.attribute[2], 10) : numbers.length +  parseInt(compare.attribute[2], 10)];
-                    } else {
-                        node = node.match(new RegExp(compare.attribute[2] + "=([^&]+)", ''))[1];
-                    }
-                    return node ? this.create(node) : false;
+                if(compare.length == 0) {
+                    this.addLog('[overtooning.fetch] No qualifier at ' + path.tag[path.current]);
+                    return false
                 }
-                return node;
+               
+                var found = false;
+                while(node && !found) {
+                    found = true;
+                    for(var cursor = compare.length -1; cursor > -1; cursor --) {
+                        switch(compare[cursor].attribute) {
+                            case 'increment':
+                            found = compare[cursor].value-- <= 0;
+                            break;
+                            case 'nodeName':
+                            found = node.nodeName.toLowerCase() == compare[cursor].value; 
+                            break;
+                            case 'className':
+                            found = node.className ? this.compareClassName(compare[cursor].value, node.className) : false;
+                            break;
+                            default:
+                            found = node.getAttribute(compare[cursor].attribute) == compare[cursor].value;
+                        }
+                        if(!found) {
+                            node = node[movingProperty];
+                            break;
+                        }
+                    }
+                }
             }
-        }
-        if(!node) {
-            if(!path.tag[0].match(/^(\.|\+|\-)/) && this.savePath.node[0] == document.body) {
-                overlayLoader.addLog('[overlayLoader.fetch] node not found ' + path.tag.join('/') + ' (' + path.current + ': ' + path.tag[path.current] + ')');
+            if(!node) {
+                if(!nolog) {
+                    this.addLog('[overtooning.fetch] Node not found ' + path.tag.join('/') + '(' + path.current + ') : ' + path.tag[path.current]);
+                }
+                return false
             }
-            return false;
-        }
-        path.current++;
-        this.savePath.node[path.current] = node;
-        this.savePath.name[path.current] = path.tag[path.current-1];
-        return (path.current < path.tag.length) ? this.fetch(path, node) : node;
+            path.current++;
+            this.jar.fetch.node[path.current] = node;
+            this.jar.fetch.name[path.current] = path.tag[path.current-1];
+            if(pathData[3]) {//force return attribute
+                var attribute = pathData[3].substr(1).split('?');
+                if(node.attributes && typeof node.attributes[attribute[0]] != 'undefined' && node.attributes[attribute[0]].nodeName == attribute[0]) {
+                    node = node.attributes[attribute[0]];
+                } else {
+                   return false;
+                }
+                //node = node.getAttributeNode(attribute[0]);
+                if(!attribute[1]) {
+                    return node;
+                }
+                node = node.value;
+                //filter function
+                switch(attribute[1][0]) {
+                    case '=': //query filter
+                    node = node.match(new RegExp(attribute[1].substr(1) + "=([^&]+)", ''));
+                    attribute[1] = '=1';
+                    break;
+                    case 'p': //path filter
+                    node = node.split('/');
+                    break;
+                    case 'n': //number filter
+                    node = node.match(/-?[0-9]+/g);
+                    break;
+                }
+                if(!node) return false;
+                attribute[1] = attribute[1].substr(1);
+                var cursor = parseInt(attribute[1], 10) % node.length;
+                if(cursor < 0) {
+                    cursor += node.length;
+                }
+                return overtooning.create(node[cursor]);
+            }
+            return (path.current < path.tag.length) ? this.fetch(path, node, nolog? true : false) : node;
+        }   
     },
-                    
+    
     create: function () {
         switch(arguments.length) {
             case 1:
@@ -2915,7 +2323,7 @@ var overlayLoader = {
                 for (var b in B) {
                     if (b.indexOf("on") == 0) {
                         A.addEventListener ? A.addEventListener(b.substring(2), B[b], false) : A.attachEvent(b,B[b]);
-                    } else if (",style,accesskey,id,name,src,href,which,doonge,classid,".indexOf("," + b.toLowerCase()) != -1) {
+                    } else if (",style,accesskey,id,name,src,href,for,value,".indexOf("," + b.toLowerCase()) != -1) {
                         A.setAttribute(b, B[b]);
                     } else {
                         A[b] = B[b];
@@ -2945,7 +2353,7 @@ var overlayLoader = {
         var req;
         if(XMLHttpRequest) {
             req = new XMLHttpRequest();
-            overlayLoader.addLog('[overlayLoader.cors] ' + url);
+            overtooning.addLog('[overtooning.cors] ' + url);
             if(req.withCredentials !== undefined) {
                 req.open(method, url, true);
                 req.responseType = type;
@@ -2955,84 +2363,22 @@ var overlayLoader = {
                         if (this.status >= 200 && this.status < 400) {
                             callback(this.responseType == '' ? this.responseText : this.response);
                         } else {
-                        overlayLoader.addLog('[overlayLoader.cors] Response returned with non-OK status');
+                        overtooning.addLog('[overtooning.cors] Response returned with non-OK status');
+                        if(errback) errback({message: '[overtooning.cors] Response returned with non-OK status'});
                         }
                     }
                 };
                 req.send(/*data*/);
             }
         } else {
-            overlayLoader.addLog('[overlayLoader.cors] XmlHTTPRequest 2 not fully supported');
+            overtooning.addLog('[overtooning.cors] XmlHTTPRequest 2 not fully supported');
+            if(errback) errback({message: '[overtooning.cors] XmlHTTPRequest 2 not fully supported'});
         }
     },
-    
-    stringToInt: function(s) {
-        if(!s.length) {
-            return s;
-        }
-        if(/^[0-9]+$/.test(s)) {
-            return parseInt(s, 10);
-        }
-        var keyStr = '0123456789abcdefghijklmnopqrstuvwxyz-_ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        var n = 0;
-        for(var i = 0; i < s.length; i++) {
-            var c = keyStr.indexOf(s.charAt(i));
-            n = n * 64 + c;
-        }
-        return n;
-    },
-    
-    shuffle: function(data) {
-        var imageId = this.resource.imageId + this.resource.salt,
-            chapterId = parseInt(this.value(this.vars.chapterId), 10),
-            webtoonId = this.stringToInt(this.value(this.vars.webtoonId)),
-            shuffle = '',
-            returnData = '';
-        shuffle += this.keyList[((webtoonId + chapterId) + imageId) % this.keyList.length];
-        shuffle += this.keyList[((webtoonId + 1) + ((chapterId + 1) * (imageId + 1))) % this.keyList.length];
-        shuffle += this.keyList[(((webtoonId + 1) * (chapterId + 1)) + (imageId + 1)) % this.keyList.length];
-        shuffle += this.keyList[webtoonId % this.keyList.length];
-        shuffle += this.keyList[chapterId % this.keyList.length];
-        shuffle += this.keyList[imageId % this.keyList.length];
-        for(var i = 0; i < data.length; i++) {
-            returnData += String.fromCharCode(data.charCodeAt(i) ^ shuffle.charCodeAt(i % shuffle.length));
-        }
-        return returnData;
-    },
-    
+  
     MTime: function() {
         return Math.round(new Date().getTime() / 1000 / 60);
-    },
-    
-    base64decode: function(input) {
-        var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-        var output = "";
-        var chr1, chr2, chr3 = "";
-        var enc1, enc2, enc3, enc4 = "";
-        var i = 0;
-        input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
-        do {
-            enc1 = keyStr.indexOf(input.charAt(i++));
-            enc2 = keyStr.indexOf(input.charAt(i++));
-            enc3 = keyStr.indexOf(input.charAt(i++));
-            enc4 = keyStr.indexOf(input.charAt(i++));
-            chr1 = (enc1 << 2) | (enc2 >> 4);
-            chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-            chr3 = ((enc3 & 3) << 6) | enc4;
-            output = output + String.fromCharCode(chr1);
-            if (enc3 != 64) {
-               output = output + String.fromCharCode(chr2);
-            }
-            if (enc4 != 64) {
-               output = output + String.fromCharCode(chr3);
-            }
-            chr1 = chr2 = chr3 = "";
-            enc1 = enc2 = enc3 = enc4 = "";
-        } while (i < input.length);
-        return unescape(output);
     }
+}
 
-};
-
-overlayLoader.run();
-//delete overlayLoader.run;
+overtooning.run();
