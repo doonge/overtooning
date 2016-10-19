@@ -2,7 +2,7 @@
 // @name            overtoonin
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.1.0
+// @version         1.1.3
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -20,8 +20,8 @@
 // @grant           none
 // ==/UserScript==
 
-var OTOON_VERSION = '1.1.1';
-var OTOON_MESSAGE = 'More robust canvases + Naver exception';
+var OTOON_VERSION = '1.1.3';
+var OTOON_MESSAGE = 'Removing leftover console log commands (lag)';
 
 // -- MUTATION OBSERVER rough fallback for older browsers.
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
@@ -623,6 +623,9 @@ var overtooning = {
                       ctx.oBackingStorePixelRatio ||
                       ctx.backingStorePixelRatio || 1;
             overtooning.jar.pixelRatio =  dpr / bsr;
+            if(overtooning.jar.pixelRatio != 1) {
+                overtooning.console('[overtooning.run] Pixel Ratio: ' + overtooning.jar.pixelRatio);
+            }
         }
         
         overtooning.jar.rawImage.onload = overtooning.rawImageOnLoad;
@@ -1005,7 +1008,8 @@ var overtooning = {
         overtooning.addLog('[overtooning.canvas] Loading overlay ' + pointer.item);
         if(!pointer.node) {
             pointer.node = overtooning.create('div', {
-                className: 'otoon-overlay'/*,
+                className: 'otoon-overlay'
+                /*,
                 style: 'position: relative;'+
                     ' width: ' + pointer.activeNode.clientWidth + 'px;'+
                     ' height: ' + pointer.activeNode.clientHeight + 'px;'+
@@ -1052,23 +1056,23 @@ var overtooning = {
             );
             
             if(/*pointer.activeNode.clientHeight != pointer.height ||*/ overtooning.jar.pixelRatio != 1) {
-                var heightMod = pointer.activeNode.clientHeight / pointer.height;
-                var widthMod = pointer.activeNode.clientWidth / pointer.width;
-                if(start == 0 && pointer.activeNode.clientHeight != pointer.height) {
+                /*var heightMod = pointer.activeNode.clientHeight / pointer.height;
+                var widthMod = pointer.activeNode.clientWidth / pointer.width;*/
+                /*if(start == 0 && pointer.activeNode.clientHeight != pointer.height) {
                     overtooning.addLog('[overtooning.canvas] Adjusting size for item '+pointer.item+': Width '+ pointer.activeNode.clientWidth +' / '+ pointer.width +' - Height '+ pointer.activeNode.clientHeight +' / '+ pointer.height);
-                }
+                }*/
                 var copyCanvas = overtooning.create('canvas', {
-                    width: Math.round(naturalCanvas.width * widthMod * overtooning.jar.pixelRatio),
-                    height: Math.round(naturalCanvas.height * widthMod * overtooning.jar.pixelRatio),
+                    width: Math.round(naturalCanvas.width * overtooning.jar.pixelRatio),
+                    height: Math.round(naturalCanvas.height * overtooning.jar.pixelRatio),
                     /*style: 'position: absolute; top: ' + (cursor.height ? Math.round(cursor.height * heightMod) : 0) + 'px;'+
                         ' left: ' + (cursor.width ? Math.round(cursor.width * widthMod) : 0) + 'px;'*/}
                 );
                 //copyCanvas.style.width =  mode == 'height' ? pointer.activeNode.clientWidth +'px' : Math.round(increment * widthMod) +'px';
                 //copyCanvas.style.height =  mode == 'height' ? Math.round(increment * heightMod) +'px' : pointer.activeNode.clientHeight +'px';
-                copyCanvas.getContext('2d').setTransform(widthMod * overtooning.jar.pixelRatio, 0, 0, heightMod * overtooning.jar.pixelRatio, 0, 0);
+                copyCanvas.getContext('2d').setTransform(overtooning.jar.pixelRatio, 0, 0, overtooning.jar.pixelRatio, 0, 0);
                 copyCanvas.getContext('2d').drawImage(naturalCanvas, 0, 0);
                 naturalCanvas = copyCanvas;
-                delete copyCanvas;
+                copyCanvas = null;
             }
             
             pointer.node.appendChild(naturalCanvas);
@@ -1106,11 +1110,9 @@ var overtooning = {
             return false;
         }
         for(var index = 0; index < template.length; index++) {
-            console.log(template[index].path);
+            //console.log(template[index].path);
             var node = overtooning.fetch(template[index].path);
             if(node) {
-                console.log('node found');
-                console.log(node);
                 node = overtooning.runCommand(node, template[index]); //not possible to call by reference node.
                 if(template[index].next && !template[index].assign) { // assign nexts are managed through their own way.
                     var item = 1;
@@ -1121,7 +1123,6 @@ var overtooning = {
                     }
                 }
             }
-            console.log('next');
         }
         template = [];
     },
@@ -2086,7 +2087,7 @@ var overtooning = {
     },
     
     addLog: function(stringLog) {
-        console.log(stringLog);
+        if(console) console.log(stringLog);
         this.jar.log.push(stringLog);
     },
  
