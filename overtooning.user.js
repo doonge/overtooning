@@ -516,6 +516,7 @@ var overtooning = {
                     }
                 }
             }
+            
             overtooning.storage.template = [];
             if(priorityTemplate.length) {
                 overtooning.runTemplate(priorityTemplate);
@@ -544,6 +545,7 @@ var overtooning = {
                 }
             }
             
+          
             //*// Cheese in the Trap exception
             var forceWebtoonId = window.location.hash.match(new RegExp('^#otoon=([0-9a-zA-Z_-]+)$'));
             if(forceWebtoonId) {
@@ -554,7 +556,6 @@ var overtooning = {
                     overtooning.jar.node.routineList.imageList = {args: data};
                 };
             }
-
             //*/
             
             overtooning.jar.run.template.sort(function(a, b) {return ( ( a.path == b.path ) ? 0 : ( ( a.path > b.path ) ? 1 : -1 ) );});
@@ -624,10 +625,10 @@ var overtooning = {
                       ctx.backingStorePixelRatio || 1;
             overtooning.jar.pixelRatio =  dpr / bsr;
             if(overtooning.jar.pixelRatio != 1) {
-                overtooning.console('[overtooning.run] Pixel Ratio: ' + overtooning.jar.pixelRatio);
+                overtooning.addLog('[overtooning.run] Pixel Ratio: ' + overtooning.jar.pixelRatio);
             }
         }
-        
+
         overtooning.jar.rawImage.onload = overtooning.rawImageOnLoad;
         overtooning.jar.rawImage.onerror = overtooning.rawImageOnError;
         overtooning.jar.overlay.onload = overtooning.overlayOnLoad;
