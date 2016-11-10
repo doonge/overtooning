@@ -2,7 +2,7 @@
 // @name            overtoonin
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.1.3
+// @version         1.1.4
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -20,8 +20,8 @@
 // @grant           none
 // ==/UserScript==
 
-var OTOON_VERSION = '1.1.3';
-var OTOON_MESSAGE = 'Removing leftover console log commands (lag)';
+var OTOON_VERSION = '1.1.4';
+var OTOON_MESSAGE = 'Naver template update for Cheese S1-3';
 
 // -- MUTATION OBSERVER rough fallback for older browsers.
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
@@ -1532,9 +1532,9 @@ var overtooning = {
         if(window.location.hostname == 'comic.naver.com') {
             // --------------------- chapter list ------------------------ //
             if(new RegExp('list.nhn$').test(window.location.pathname)) {
-                overtooning.jar.run.stylesheet.textContent += '.otoon-virtual {cursor: pointer; display: inline-block; padding: 4px 8px 4px 7px; border: 1px solid #FFF; font: bold 13px Verdana !important; color: black;} .current {cursor: pointer}';
+                overtooning.jar.run.stylesheet.textContent += '.otoon-virtual {cursor: pointer; display: inline-block; padding: 4px 6px 4px 5px; border: 1px solid #FFF; font: 13px Verdana; color: #999;} .otoon-current, .otoon-virtual:hover {border: 1px solid #e0e0e0; color: #00c73c; cursor: pointer} .otoon-current {font-weight: bold;}';
                 
-                var navNode = overtooning.fetch('#content/div.pagenavigation'),
+                var navNode = overtooning.fetch('#content/div.paginate'),
                     insertChapters = 0,
                     chapterPerPage = 10;
                 navNode.textContent = '';
@@ -1833,11 +1833,11 @@ var overtooning = {
         },
         
         chapterList: function() {
-            var currentNode = overtooning.fetch('#content/div.pagenavigation/span.current');
+            var currentNode = overtooning.fetch('#content/div.paginate/span.otoon-current');
             if(currentNode) {
                     currentNode.className = 'otoon-virtual';
             }
-            this.className = 'otoon-virtual current';
+            this.className = 'otoon-virtual otoon-current';
             var modifyHTML = overtooning.fetch('#content/table/tbody');
             if(modifyHTML) {
                 modifyHTML.innerHTML = '';
