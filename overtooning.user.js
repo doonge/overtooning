@@ -2,7 +2,7 @@
 // @name            overtoonin
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.1.4
+// @version         1.1.5
 // @description     Load overlay from scanlation teams while browsing original webtoons.
 // @match           http://comic.naver.com/*
 // @match           http://m.comic.naver.com/*
@@ -20,8 +20,8 @@
 // @grant           none
 // ==/UserScript==
 
-var OTOON_VERSION = '1.1.4';
-var OTOON_MESSAGE = 'Naver template update for Cheese S1-3';
+var OTOON_VERSION = '1.1.5';
+var OTOON_MESSAGE = 'Naver mobile template update';
 
 // -- MUTATION OBSERVER rough fallback for older browsers.
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
@@ -1711,11 +1711,7 @@ var overtooning = {
         } else if(window.location.hostname == 'm.comic.naver.com') {
             // --------------------- chapter list ------------------------ //
             if(new RegExp('list.nhn$').test(window.location.pathname)) {
-                var adNode = overtooning.fetch('#form/div.toon_notice');
-                if(adNode) {
-                    adNode.parentNode.removeChild(adNode);
-                }
-                var navNode = document.getElementById('pageList'),
+                var navNode = overtooning.fetch('#ct/ul.toon_lst'),
                     linkName = window.location.pathname.replace('list.nhn', 'detail.nhn?no=1&titleId='+overtooning.jar.node.value('webtoonId')+'#otoon=');
                 navNode.textContent = '';
                 for(var i = overtooning.jar.chapterList.length -1; i > -1; i--) {
@@ -1773,8 +1769,9 @@ var overtooning = {
                     if(raw.length > 2) {
                         refNode.removeAttribute('width');
                         refNode.removeAttribute('height');
+                        refNode.setAttribute('data-original', raw[1]);
                         refNode.src = raw[1];
-                        if(raw[0] != '') {
+                        if(raw[0] != '' && raw[0] != 'create') {
                             refNode.setAttribute('style', raw[0]);
                         }
                     }
@@ -1783,7 +1780,7 @@ var overtooning = {
                             overtooning.create('img', {src: raw[i]}),
                             refNode.nextSibling);
                         refNode = refNode.nextSibling;
-                        if(raw[0] != '') {
+                        if(raw[0] != '' && raw[0] != 'create') {
                             refNode.setAttribute('style', raw[0]);
                         }
                     }
@@ -1792,11 +1789,9 @@ var overtooning = {
                 overtooning.assign.imageList = overtooning.jar.saveAssignImageList;
                 overtooning.jar.saveAssignImageList = null;
                 overtooning.runTemplate([overtooning.jar.node.routineList.imageList.args]);
-                
-                var navNode = overtooning.fetch('#spiLayer1/+div/p'),
+                var navNode = overtooning.fetch('#ct/div.end_sub_cont/div.navi_area'),
                     chapterId = overtooning.jar.node.value('chapterId'),
                     chapterIndex = -1;
-                
                 navNode.textContent = '';
                 for(var i = 0; i < overtooning.jar.chapterList.length; i++) {
                     if(overtooning.jar.chapterList[i].id == chapterId) {
@@ -1804,24 +1799,30 @@ var overtooning = {
                         break;
                     }
                 }
-                
                 var navURL = {
                     previous: chapterIndex > 0 ? '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[chapterIndex -1].id : false,
                     next: chapterIndex < overtooning.jar.chapterList.length -1 ? '?titleId=' + overtooning.jar.node.value('webtoonId') + '&no=1#otoon=' + overtooning.jar.chapterList[chapterIndex +1].id : false
                 };
-                
-                var classNav = (navURL.previous && navURL.next) ? 'w33' : 'w50';
-                if(navURL.previous) {
-                    navNode.appendChild(overtooning.create('a', {className: classNav, href: navURL.previous, onclick: overtooning.naverEvent.loadHashLink},
-                        overtooning.create('span', {className: 'pv', textContent: 'Previous'})
-                    ));
-                }
-                if(navURL.next) {
-                    navNode.appendChild(overtooning.create('a', {className: classNav, href: navURL.next, onclick: overtooning.naverEvent.loadHashLink},
-                        overtooning.create('span', {className: 'nx', textContent: 'Next'})
-                    ));
-                }
-                navNode.appendChild(overtooning.create('a', {className: classNav, href: 'list.nhn?titleId=' + overtooning.jar.node.value('webtoonId'), textContent: 'List'}));
+                navNode.appendChild(overtooning.create('a', {
+                            className: 'link_nav link_prev'+(navURL.previous?'':' disabled'),
+                            href: navURL.previous,
+                            onclick: overtooning.naverEvent.loadHashLink},
+                        overtooning.create('span', {className: 'ico_comic'}),
+                        overtooning.create('Previous')
+                ));
+                navNode.appendChild(overtooning.create('a', {
+                            className: 'link_nav link_list',
+                            href: 'list.nhn?titleId=' + overtooning.jar.node.value('webtoonId')},
+                        overtooning.create('span', {className: 'ico_comic'}),
+                        overtooning.create('List')
+                ));
+                navNode.appendChild(overtooning.create('a', {
+                            className: 'link_nav link_next'+(navURL.next?'':' disabled'),
+                            href: navURL.next,
+                            onclick: overtooning.naverEvent.loadHashLink},
+                        overtooning.create('span', {className: 'ico_comic'}),
+                        overtooning.create('Next')
+                ));
             }
         }
     },
