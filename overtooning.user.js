@@ -1,27 +1,28 @@
-﻿// ==UserScript==
-// @name            overtoonin
+// ==UserScript==
+// @name            overtooning
 // @namespace       http://www.bumblebits.net
 // @author          doonge@oddsquad.org
-// @version         1.1.5
+// @version         1.1.7
 // @description     Load overlay from scanlation teams while browsing original webtoons.
-// @match           http://comic.naver.com/*
-// @match           http://m.comic.naver.com/*
-// @match           http://webtoon.daum.net/*
-// @match           http://cartoon.media.daum.net/*
-// @match           http://comico.toast.com/*
-// @match           http://www.comico.jp/*
-// @match           http://www.foxtoon.com/*
-// @match           http://page.kakao.com/*
-// @match           http://comics.nate.com/*
-// @match           http://webtoon.olleh.com/*
-// @match           http://ttale.com/*
-// @match           http://www.lezhin.com/*
+// @match           *://comic.naver.com/*
+// @match           *://m.comic.naver.com/*
+// @match           *://webtoon.daum.net/*
+// @match           *://cartoon.media.daum.net/*
+// @match           *://comico.toast.com/*
+// @match           *://www.comico.jp/*
+// @match           *://www.foxtoon.com/*
+// @match           *://page.kakao.com/*
+// @match           *://comics.nate.com/*
+// @match           *://webtoon.olleh.com/*
+// @match           *://ttale.com/*
+// @match           *://www.lezhin.com/*
 // @match           https://ex-ac.lezhin.com/*
+// @match           *://manhua.weibo.com/*
 // @grant           none
 // ==/UserScript==
 
-var OTOON_VERSION = '1.1.5';
-var OTOON_MESSAGE = 'Naver mobile template update';
+var OTOON_VERSION = '1.1.7';
+var OTOON_MESSAGE = 'Mixed content fix (set to https).';
 
 // -- MUTATION OBSERVER rough fallback for older browsers.
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
@@ -54,7 +55,7 @@ if(!MutationObserver) {
 var overtooning = {
     //lang: http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry ?
     storage: {                  //default values (overwritten by localStorage if exists)
-        feed: [{url: 'http://otoon-api.bumblebits.net', name: 'Default feed', lang: ['en', 'es'], lastUpdate: 0}],
+        feed: [{url: 'https://otoon-api.bumblebits.net', name: 'Default feed', lang: ['en', 'es'], lastUpdate: 0}],
         webtoon: [],
         config: {
             debug: 3,               //verbosity of logs.
@@ -1077,6 +1078,7 @@ var overtooning = {
             }
             
             pointer.node.appendChild(naturalCanvas);
+            overtooning.addLog('[overtooning.canvas] canvas added ' + dim.width + 'x' + dim.height +' (' + overtooning.jar.pixelRatio +')');
             start += increment;
         }
         
